@@ -16,7 +16,7 @@
       "description": "提升工作效率的技能集合，包括专利文档自动化生成工具",
       "source": "./",
       "strict": false,
-      "agents": ["./agents/patent/*"],
+      "agents": "./agents/patent/",
       "skills": [
         "./skills/patent-disclosure-writer"
       ],
