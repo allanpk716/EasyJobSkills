@@ -6,13 +6,111 @@ description: 自动生成专利申请技术交底书
 
 你正在调用专利申请技术交底书自动化生成技能。本技能将帮助你完成从创新想法到完整交底书的整个过程。
 
+## 智能继续模式
+
+本命令支持智能检测已完成的章节，只执行剩余步骤。
+
+### 工作流程
+
+**0. 工作目录确认**
+- 默认使用当前目录
+- 如果当前目录无章节文件，询问是否使用其他目录（如 `C:\WorkSpace\专利`）
+
+**1. 检测已完成章节**
+- 扫描工作目录中的 `01-10_*.md` 文件
+- 记录已存在的章节文件
+
+**2. 分析完成进度**
+- 根据已存在的文件判断哪些子代理已完成
+- 判断是否需要跳过某些步骤
+
+**3. 智能对话确认**
+- 如果发现已有章节文件，询问用户意图：
+  - "检测到已有X个章节文件，是否从已有章节继续？"
+  - 选项：[继续执行] [重新生成] [选择特定章节重新生成]
+
+**4. 选择性执行**
+- 如果选择"继续执行"：只调用缺失步骤对应的子代理
+- 如果所有10个章节都存在：直接调用 document-integrator
+- 如果选择"重新生成"：执行所有子代理
+- 如果选择"选择特定章节"：让用户选择要重新生成的章节
+
+### 章节文件映射
+
+| 文件名 | 对应子代理 |
+|--------|-----------|
+| 01_发明名称.md | title-generator |
+| 02_技术领域.md | field-analyzer |
+| 03_背景技术.md | background-researcher |
+| 04_技术问题.md | problem-analyzer |
+| 05_技术方案.md | solution-designer |
+| 06_有益效果.md | benefit-analyzer |
+| 07_具体实施方式.md | implementation-writer |
+| 08_专利保护点.md | protection-extractor |
+| 09_参考资料.md | reference-collector |
+| 10_附图说明.md | diagram-generator |
+
 ## 执行步骤
 
 请按以下步骤执行：
 
-### 1. 收集用户输入
+### 1. 收集用户输入并检测已有章节
 
-如果用户未提供以下信息，请询问：
+**步骤 1.1：检测工作目录中的章节文件**
+
+使用 Glob 工具扫描当前目录中的章节文件：
+
+```
+Glob: 0*_*.md
+```
+
+记录已存在的章节文件，例如：
+- `01_发明名称.md` ✓
+- `02_技术领域.md` ✓
+- ...
+- `10_附图说明.md` ✓
+
+**步骤 1.2：根据检测结果确定工作流程**
+
+**场景 A：未检测到任何章节文件**
+- 执行完整的专利交底书生成流程
+- 进入步骤 1.3 收集用户输入
+
+**场景 B：检测到部分章节文件（1-9个）**
+- 向用户展示已存在的章节文件列表
+- 询问用户意图：
+  ```
+  检测到已有 X 个章节文件：
+  ✓ 01_发明名称.md
+  ✓ 02_技术领域.md
+  ...
+
+  是否从已有章节继续生成交底书？
+  [继续执行] [重新生成] [选择特定章节重新生成]
+  ```
+- 根据用户选择执行相应操作
+
+**场景 C：检测到全部10个章节文件**
+- 询问用户是否直接生成交底书：
+  ```
+  检测到已有完整的10个章节文件。
+
+  是否直接生成交底书文档？
+  [直接生成交底书] [重新生成所有章节] [选择特定章节重新生成]
+  ```
+- 如果选择"直接生成交底书"，跳到步骤 2.11 调用 document-integrator
+
+**步骤 1.3：目录确认（可选）**
+
+如果当前目录未检测到章节文件，询问用户：
+```
+当前目录未检测到章节文件。
+是否使用其他目录？（如 C:\WorkSpace\专利）
+```
+
+**步骤 1.4：收集用户输入（如果需要从头开始）**
+
+如果用户选择重新生成或未检测到章节文件，请询问：
 
 - **创新想法 (idea)**: 请描述你的创新内容或技术改进思路
 - **所属技术领域 (technical_field)**: 这项技术属于哪个领域？
@@ -20,20 +118,52 @@ description: 自动生成专利申请技术交底书
 
 ### 2. 按顺序调用子代理
 
-使用 Task 工具按以下顺序调用各子代理：
+**步骤 2.0：确定需要执行的子代理**
+
+根据步骤 1 的检测结果和用户选择，确定需要执行的子代理列表：
+
+- **重新生成模式**：执行所有11个子代理（步骤 2.1 - 2.11）
+- **继续执行模式**：跳过已存在文件的子代理，只执行缺失的子代理
+- **选择特定章节模式**：只执行用户选择的子代理
+
+**步骤 2.1 - 2.10：调用各章节生成子代理**
+
+对每个需要执行的子代理，使用 Task 工具调用：
 
 ```
-1. title-generator        - 生成发明名称
-2. field-analyzer         - 分析所属技术领域
-3. background-researcher  - 调研背景技术（使用 web-search-prime, google-patents-mcp, exa, web-reader）
-4. problem-analyzer       - 分析解决的技术问题
-5. solution-designer      - 设计技术方案（使用 exa, web-search-prime）
-6. benefit-analyzer       - 分析有益效果
-7. implementation-writer  - 编写具体实施方式（使用 exa, web-search-prime）
-8. protection-extractor   - 提炼保护点（使用 google-patents-mcp）
-9. reference-collector    - 收集参考资料（使用 google-patents-mcp, web-search-prime, web-reader）
-10. diagram-generator      - 生成附图说明
+1. title-generator        - 生成发明名称（如果 01_发明名称.md 不存在）
+2. field-analyzer         - 分析所属技术领域（如果 02_技术领域.md 不存在）
+3. background-researcher  - 调研背景技术（如果 03_背景技术.md 不存在）
+   使用 web-search-prime, google-patents-mcp, exa, web-reader
+4. problem-analyzer       - 分析解决的技术问题（如果 04_技术问题.md 不存在）
+5. solution-designer      - 设计技术方案（如果 05_技术方案.md 不存在）
+   使用 exa, web-search-prime
+6. benefit-analyzer       - 分析有益效果（如果 06_有益效果.md 不存在）
+7. implementation-writer  - 编写具体实施方式（如果 07_具体实施方式.md 不存在）
+   使用 exa, web-search-prime
+8. protection-extractor   - 提炼保护点（如果 08_专利保护点.md 不存在）
+   使用 google-patents-mcp
+9. reference-collector    - 收集参考资料（如果 09_参考资料.md 不存在）
+   使用 google-patents-mcp, web-search-prime, web-reader
+10. diagram-generator     - 生成附图说明（如果 10_附图说明.md 不存在）
+```
+
+**跳过逻辑示例**：
+
+如果检测到 `01_发明名称.md` 已存在，则跳过 title-generator：
+```
+✓ 01_发明名称.md 已存在，跳过 title-generator
+→ 执行 field-analyzer...
+```
+
+**步骤 2.11：调用文档整合子代理**
+
+所有必需章节生成完成后，调用 document-integrator：
+
+```
 11. document-integrator   - 整合所有章节生成完整交底书
+   输入：patent_type（专利类型）
+   输出：Markdown 和 DOCX 格式的完整交底书
 ```
 
 ### 3. 输出结果
