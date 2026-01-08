@@ -71,7 +71,10 @@ Task(tool="diagram-generator", prompt="技术方案：{技术方案内容}，专
 
 Task(tool="reference-collector", prompt="技术领域：{technical_field}，专利类型：{patent_type}")
 
-# 第六阶段：文档整合
+# 第六阶段：附图插入（新增）
+Task(tool="diagram-inserter", prompt="Markdown文件：{markdown_file_path}，附图说明：{output_dir}/10_附图说明.md，输出目录：{output_dir}，专利类型：{patent_type}")
+
+# 第七阶段：文档整合
 Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合所有章节")
 ```
 
@@ -151,7 +154,12 @@ Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合�
 10. diagram-generator (附图生成)
     → 输出: 10_附图说明.mermaid
        ↓
-11. document-integrator (文档整合)
+11. diagram-inserter (附图插入) - 新增
+    → 将附图智能插入到交底书最相关章节
+    → Markdown格式: 嵌入Mermaid代码块
+    → DOCX格式: 渲染为PNG图片后插入
+       ↓
+12. document-integrator (文档整合)
     → 步骤1: 输出 Markdown 格式交底书
     → 步骤2: 生成 DOCX 格式交底书
        ↓
@@ -160,7 +168,7 @@ Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合�
 
 ## 子代理配置
 
-技能使用 11 个专业化子代理完成各章节的撰写：
+技能使用 12 个专业化子代理完成各章节的撰写：
 
 | 子代理 | 对应章节 | 主要MCP工具 | 输出文件 |
 |--------|----------|-------------|----------|
@@ -173,7 +181,8 @@ Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合�
 | implementation-writer | 5.具体实施方式 | exa, web-search-prime | 07_具体实施方式.md |
 | protection-extractor | 6.关键点和欲保护点 | google-patents-mcp | 08_关键点和欲保护点.md |
 | reference-collector | 7.其他参考资料 | google-patents-mcp, web-search-prime, web-reader | 09_其他有助于理解本技术的资料.md |
-| diagram-generator | 附图说明 | - | 10_附图说明.mermaid |
+| diagram-generator | 附图说明 | - | 10_附图说明.md |
+| diagram-inserter | 附图插入 | mermaid-cli, python-docx | 附图插入报告.json + diagram_images/ |
 | document-integrator | 文档整合 | python-docx | 专利申请技术交底书_[发明名称].md + .docx |
 
 ## 交底书章节结构
@@ -364,10 +373,26 @@ document-integrator 子代理必须严格按照以下格式输出交底书：
 
 ## Python 依赖要求
 
-document-integrator 子代理需要以下 Python 库：
+### Python 库依赖
+
+document-integrator 和 diagram-inserter 子代理需要以下 Python 库：
 ```bash
 pip install python-docx
 ```
+
+### Node.js 依赖（新增）
+
+diagram-inserter 子代理需要以下 Node.js 工具来渲染 Mermaid 图表：
+
+```bash
+# 安装 mermaid-cli
+npm install -g @mermaid-js/mermaid-cli
+
+# 验证安装
+mmdc --version
+```
+
+**mermaid-cli** 用于将 Mermaid 代码渲染为 PNG 图片，以便插入到 DOCX 文档中。
 
 ## 子代理执行顺序
 
@@ -393,8 +418,12 @@ pip install python-docx
 9. diagram-generator
 10. reference-collector（可提前进行）
 
-**第六阶段：文档整合**
-11. document-integrator
+**第六阶段：附图插入（新增）**
+11. diagram-inserter
+    - 将附图智能插入到交底书最相关章节
+
+**第七阶段：文档整合**
+12. document-integrator
     - 步骤1：生成 Markdown 格式
     - 步骤2：生成 DOCX 格式
 

@@ -197,6 +197,50 @@ pip install python-docx
 输出文件命名：
 - 专利申请技术交底书_[发明名称].md
 
+## 步骤 1.5：插入附图到 Markdown（新增）
+
+在生成 Markdown 文件后，调用 diagram-inserter 子代理将附图插入到文档的最相关章节。
+
+**调用 diagram-inserter 子代理**：
+
+使用 Task 工具调用：
+
+```markdown
+Task(tool="diagram-inserter",
+     prompt="Markdown文件：{步骤1生成的Markdown文件路径}，附图说明：{输出目录路径}/10_附图说明.md，输出目录：{输出目录路径}，专利类型：{patent_type}")
+```
+
+**diagram-inserter 会执行**：
+1. 读取 `10_附图说明.md` 中的12幅附图
+2. 分析每幅图的语义内容，确定最佳插入章节
+3. 将附图（Mermaid 代码块）插入到 Markdown 文档的最相关位置
+4. 生成插入报告
+
+**预期输出**：
+- 修改后的 Markdown 文件（包含附图引用和 Mermaid 代码块）
+- 附图插入报告（JSON格式）
+
+**Markdown 中的附图格式**：
+```markdown
+**附图[图编号]：[附图名称]**
+
+```mermaid
+[Mermaid 代码]
+```
+
+图[图编号]说明：[附图说明文字]
+```
+
+**验证**：
+- 确认 Markdown 文件包含12个附图块
+- 检查每个附图都在正确的章节
+- 验证 Mermaid 代码格式正确
+
+**图片-章节映射示例**：
+- 图1（系统架构图）→ 4.（2）技术方案
+- 图4（设备发现流程图）→ 5. 具体实施方式
+- 图12（部署实施例图）→ 4.（3）有益效果
+
 ## 步骤2：DOCX 格式输出（使用三子代理架构）
 
 在生成 Markdown 文件后，使用专门的三子代理架构生成 DOCX 文件并验证质量。
@@ -312,6 +356,82 @@ python .claude/scripts/docx_conversion/docx_generator.py "parsed_sections.json" 
 - 确认 DOCX 文件已成功生成
 - 检查字体是否正确应用
 - 确认所有章节已填充
+
+### 步骤 2.25：插入附图到 DOCX（新增）
+
+在生成基础 DOCX 文件后，使用 diagram-inserter 的 Python 脚本将附图渲染并插入到 DOCX 文档中。
+
+**调用 diagram-inserter Python 脚本**：
+
+使用 Bash 工具执行：
+
+```bash
+python .claude/scripts/docx_conversion/diagram_inserter.py \
+  "{markdown_file_path}" \
+  "{docx_file_path}" \
+  "{output_dir}/10_附图说明.md" \
+  "{output_dir}/diagram_images"
+```
+
+**依赖检查**：
+- 检查 `mermaid-cli` 是否已安装：
+  ```bash
+  mmdc --version
+  ```
+- 如果未安装，提供安装指导：
+  ```bash
+  ❌ 错误：mermaid-cli 未安装
+
+  💡 解决方法：
+
+  1. 安装 Node.js（如果未安装）
+     访问: https://nodejs.org/
+
+  2. 安装 mermaid-cli
+     npm install -g @mermaid-js/mermaid-cli
+
+  3. 验证安装
+     mmdc --version
+  ```
+
+**diagram-inserter.py 脚本功能**：
+1. 从 Markdown 中提取 Mermaid 代码块
+2. 使用 `mermaid-cli` 渲染为 PNG 图片（透明背景，2倍缩放）
+3. 根据图片-章节映射表找到最佳插入位置
+4. 将图片插入到 DOCX 对应位置
+5. 添加图片标题和说明文字
+6. 生成插入报告
+
+**预期输出**：
+- 渲染的图片文件（PNG格式，保存在 `{output_dir}/diagram_images/`）
+- 修改后的 DOCX 文件（包含插入的图片）
+- 附图插入报告（JSON格式）
+
+**插入报告格式**：
+```json
+{
+  "success": true,
+  "insertion_timestamp": "2026-01-08T16:00:00Z",
+  "total_diagrams": 12,
+  "success_count": 12,
+  "insertions": [
+    {
+      "diagram_number": "图1",
+      "diagram_name": "系统架构图",
+      "target_section": "4.（2）技术方案",
+      "image_path": "diagram_images/图1_系统架构图.png",
+      "status": "success"
+    }
+  ],
+  "docx_modified": true
+}
+```
+
+**验证**：
+- 确认所有12幅图都已渲染
+- 检查图片在 DOCX 中的位置正确
+- 验证图片质量清晰（300 DPI，5英寸宽）
+- 确认图片标题和说明文字正确
 
 ### 步骤 2.3：调用 docx-validator
 
