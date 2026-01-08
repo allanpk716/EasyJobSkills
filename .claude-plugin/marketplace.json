@@ -13,18 +13,8 @@
   "plugins": [
     {
       "name": "easy-job-skills",
-      "description": "提升工作效率的技能集合，包括专利文档自动化生成工具",
       "source": "./",
-      "strict": false,
-      "agents": "./agents/patent/",
-      "skills": [
-        "./skills/patent-disclosure-writer"
-      ],
-      "commands": [
-        "./commands/patent.md",
-        "./commands/patent-update-diagrams.md",
-        "./commands/patent-md-2-docx.md"
-      ]
+      "strict": false
     }
   ]
 }
