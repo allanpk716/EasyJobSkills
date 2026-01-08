@@ -8,8 +8,11 @@ description: Writes detailed implementation examples and working principles
 本子代理接收以下参数：
 - **patent_type**：专利类型（发明专利/实用新型专利）
 - **技术方案内容**：来自 solution-designer 的输出
+- **starting_figure_number**：起始附图编号（必需）
 
-参数通过 prompt 传递，格式：`专利类型：{patent_type}，技术方案：{技术方案内容}`
+参数通过 prompt 传递，格式：`专利类型：{patent_type}，技术方案：{技术方案内容}，起始附图编号：{starting_figure_number}`
+
+**重要**：本子代理需要返回实际生成的附图数量，供主流程更新附图编号计数器。
 
 ## 使用专利类型参数
 
@@ -28,6 +31,188 @@ description: Writes detailed implementation examples and working principles
 - 数学公式和计算方法
 - 步骤流程和操作说明
 - 伪代码或抽象描述
+
+---
+
+## 附图生成职责
+
+本子代理在生成具体实施方式时，**根据实际内容需要动态决定生成哪些附图**。
+
+### 附图生成判断逻辑
+
+对每个实施步骤，判断是否需要附图：
+
+**判断标准**：
+- 该步骤描述了操作流程 → 生成流程图
+- 该步骤描述了多组件交互 → 生成时序图
+- 该步骤描述了部署场景 → 生成应用场景图
+- 该步骤描述了配置结构 → 生成结构图
+
+**不需要生成附图的情况**：
+- 简单的文本描述即可说明清楚
+- 纯参数配置列表
+- 已在附图中涵盖的内容
+
+### 附图嵌入格式
+
+在具体实施方式的相应位置，按以下格式嵌入附图：
+
+```markdown
+#### 附图X：[步骤名称]示意图
+
+```mermaid
+[Mermaid代码]
+```
+
+如图X所示，[在后续文字中引用该图]
+```
+
+### 附图生成流程
+
+1. **分析流程**：识别需要可视化的流程步骤
+2. **调用生成器**：根据类型调用 flowchart/sequence/architecture 生成器
+3. **嵌入附图**：在步骤描述前插入附图
+4. **交叉引用**：在后续文字中使用"如图X所示"引用
+5. **更新编号**：维护附图编号（递增）
+6. **统计数量**：记录实际生成的附图数量
+
+### 附图生成器调用接口
+
+#### 调用流程图生成器（flowchart-generator）
+
+```markdown
+## 场景：描述操作流程后生成流程图
+
+### 步骤1：判断是否需要生成
+
+如果实施方式描述包含：
+- "流程"、"步骤"、"首先...然后...最后"
+- "操作流程"、"处理流程"
+- 多个步骤的顺序执行
+
+→ 需要生成流程图
+
+### 步骤2：调用生成器
+
+Task(tool="flowchart-generator",
+     prompt="附图编号：{current_figure}，
+           流程描述：[从实施方式中提取的流程描述]，
+           附图标记起始值：{current_figure * 100}")
+
+### 步骤3：获取结果并嵌入
+
+# 获取返回的 Mermaid 代码
+mermaid_code = result
+
+# 嵌入到章节文件
+#### 附图{current_figure}：{流程名称}流程图
+
+```mermaid
+{mermaid_code}
+```
+
+如图{current_figure}所示，[流程说明]。
+
+### 步骤4：更新计数器
+current_figure += 1
+diagrams_generated += 1
+```
+
+#### 调用时序图生成器（sequence-generator）
+
+```markdown
+## 场景：描述多组件交互后生成时序图
+
+### 步骤1：判断是否需要生成
+
+如果实施方式描述包含：
+- "A发送给B"、"A请求B"
+- "消息交互"、"通信协议"
+- 多个组件之间的时序关系
+
+→ 需要生成时序图
+
+### 步骤2：调用生成器
+
+Task(tool="sequence-generator",
+     prompt="附图编号：{current_figure}，
+           时序描述：[从实施方式中提取的消息交互描述]，
+           参与者列表：[提取的参与者列表]，
+           附图标记起始值：{current_figure * 100}")
+
+### 步骤3：获取结果并嵌入
+
+# 获取返回的 Mermaid 代码并嵌入
+#### 附图{current_figure}：{交互名称}时序图
+
+```mermaid
+{result}
+```
+
+如图{current_figure}所示，[时序说明]。
+
+### 步骤4：更新计数器
+current_figure += 1
+diagrams_generated += 1
+```
+
+#### 调用架构图生成器（architecture-generator）
+
+```markdown
+## 场景：描述部署场景后生成架构图
+
+### 步骤1：判断是否需要生成
+
+如果实施方式描述包含：
+- "部署场景"、"应用场景"
+- "系统布局"、"设备连接"
+- 实际应用环境
+
+→ 需要生成架构图
+
+### 步骤2：调用生成器
+
+Task(tool="architecture-generator",
+     prompt="附图编号：{current_figure}，
+           附图描述：[从实施方式中提取的部署场景描述]，
+           图表类型：application-scenario，
+           附图标记起始值：{current_figure * 100}")
+
+### 步骤3：获取结果并嵌入
+
+# 获取返回的 Mermaid 代码并嵌入
+#### 附图{current_figure}：{场景名称}示意图
+
+```mermaid
+{result}
+```
+
+如图{current_figure}所示，[场景说明]。
+
+### 步骤4：更新计数器
+current_figure += 1
+diagrams_generated += 1
+```
+
+### 附图编号管理
+
+使用传入的 `starting_figure_number` 作为起始编号：
+
+```markdown
+## 附图编号管理
+
+初始化：
+current_figure = starting_figure_number
+diagrams_generated = 0
+
+每生成一幅附图：
+current_figure += 1
+diagrams_generated += 1
+
+最终返回：
+实际生成的附图数量：diagrams_generated
+使用的附图编号：[starting_figure_number] 到 [current_figure - 1]
+```
 
 ---
 

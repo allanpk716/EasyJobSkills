@@ -8,7 +8,7 @@ description: 自动生成专利申请技术交底书
 
 ## 智能继续模式
 
-本命令支持智能检测已完成的章节，只执行剩余步骤。
+本命令支持智能检测已完成的章节及附图状态，只执行剩余步骤。
 
 ### 工作流程
 
@@ -17,38 +17,97 @@ description: 自动生成专利申请技术交底书
 - 如果当前目录无章节文件，询问是否使用其他目录（如 `C:\WorkSpace\专利`）
 
 **1. 检测已完成章节**
-- 扫描工作目录中的 `01-10_*.md` 文件
+- 扫描工作目录中的 `01-09_*.md` 文件
 - 记录已存在的章节文件
+- 检测章节文件中是否包含附图（使用正则 `/#### 附图\d+：/` 检测）
+- 统计附图编号和数量
 
 **2. 分析完成进度**
 - 根据已存在的文件判断哪些子代理已完成
+- 检查附图编号连续性
 - 判断是否需要跳过某些步骤
 
 **3. 智能对话确认**
 - 如果发现已有章节文件，询问用户意图：
-  - "检测到已有X个章节文件，是否从已有章节继续？"
+  - "检测到已有X个章节文件，其中Y个包含附图。是否从已有章节继续？"
   - 选项：[继续执行] [重新生成] [选择特定章节重新生成]
 
 **4. 选择性执行**
 - 如果选择"继续执行"：只调用缺失步骤对应的子代理
-- 如果所有10个章节都存在：直接调用 document-integrator
+- 如果所有9个章节都存在：直接调用 document-integrator
 - 如果选择"重新生成"：执行所有子代理
 - 如果选择"选择特定章节"：让用户选择要重新生成的章节
 
+### 附图状态检测
+
+**需要检测附图的章节**：03, 04, 05, 06, 07
+
+**不需要检测附图的章节**：01, 02, 08, 09
+
+**检测方法**：
+
+对每个章节文件（03-07），检查是否包含附图：
+
+```
+检测附图标记：/#### 附图\d+：/
+检测 Mermaid 代码：/```mermaid/
+```
+
+**状态报告格式**：
+
+```
+=== 章节状态检测报告 ===
+
+已完成的章节：
+✓ 01_发明名称.md - 完成
+✓ 02_技术领域.md - 完成
+✓ 05_技术方案.md - 包含 3 幅附图（图1, 图2, 图3）
+
+缺少或需要更新的章节：
+✗ 03_背景技术.md - 不存在
+✗ 07_具体实施方式.md - 已存在但无附图（可能是旧版本）
+
+附图统计：共 3 幅（图1-图3）
+
+选择操作：
+[1] 继续执行（跳过已完成章节）
+[2] 重新生成特定章节
+[3] 全部重新生成
+```
+
+### 附图编号连续性验证
+
+扫描所有章节文件提取附图编号，验证编号是否连续：
+
+```
+验证附图编号连续性：
+- 扫描所有章节文件提取附图编号
+- 检查编号是否连续（1,2,3,4,5...）
+- 如果发现跳号，提示用户
+
+示例：
+⚠ 警告：附图编号不连续
+  - 05_技术方案.md: 图1, 图2, 图3
+  - 07_具体实施方式.md: 图5, 图6
+
+  缺少图4，可能需要重新生成 07_具体实施方式.md
+```
+
 ### 章节文件映射
 
-| 文件名 | 对应子代理 |
-|--------|-----------|
-| 01_发明名称.md | title-generator |
-| 02_技术领域.md | field-analyzer |
-| 03_背景技术.md | background-researcher |
-| 04_技术问题.md | problem-analyzer |
-| 05_技术方案.md | solution-designer |
-| 06_有益效果.md | benefit-analyzer |
-| 07_具体实施方式.md | implementation-writer |
-| 08_专利保护点.md | protection-extractor |
-| 09_参考资料.md | reference-collector |
-| 10_附图说明.md | diagram-generator |
+| 文件名 | 对应子代理 | 附图职责 | 变更说明 |
+|--------|-----------|---------|---------|
+| 01_发明名称.md | title-generator | 无附图 | 不变 |
+| 02_技术领域.md | field-analyzer | 无附图 | 不变 |
+| 03_背景技术.md | background-researcher | **可选：现有技术架构图** | 根据内容动态生成并嵌入附图 |
+| 04_技术问题.md | problem-analyzer | **可选：问题场景图** | 根据内容动态生成并嵌入附图 |
+| 05_技术方案.md | solution-designer | **核心：架构图、协议图** | 根据内容动态生成并嵌入附图 |
+| 06_有益效果.md | benefit-analyzer | **可选：效果对比图** | 根据内容动态生成并嵌入附图 |
+| 07_具体实施方式.md | implementation-writer | **核心：流程图、时序图** | 根据内容动态生成并嵌入附图 |
+| 08_专利保护点.md | protection-extractor | 无附图 | 不变 |
+| 09_参考资料.md | reference-collector | 无附图 | 不变 |
+
+**附图生成方式**：附图已由各章节生成器在生成章节内容时根据需要动态生成并嵌入到章节文件中（以 Mermaid 代码块形式），无需单独的附图生成步骤。
 
 ## 执行步骤
 
@@ -99,15 +158,15 @@ Glob: [0-9][0-9]_*.md
   ```
 - 根据用户选择执行相应操作
 
-**场景 C：检测到全部10个章节文件**
+**场景 C：检测到全部9个章节文件**
 - 询问用户是否直接生成交底书：
   ```
-  检测到已有完整的10个章节文件。
+  检测到已有完整的9个章节文件（01-09）。
 
   是否直接生成交底书文档？
   [直接生成交底书] [重新生成所有章节] [选择特定章节重新生成]
   ```
-- 如果选择"直接生成交底书"，跳到步骤 2.11 调用 document-integrator
+- 如果选择"直接生成交底书"，跳到步骤 2.10 调用 document-integrator
 
 **步骤 1.3：目录确认（可选）**
 
@@ -131,30 +190,71 @@ Glob: [0-9][0-9]_*.md
 
 根据步骤 1 的检测结果和用户选择，确定需要执行的子代理列表：
 
-- **重新生成模式**：执行所有11个子代理（步骤 2.1 - 2.11）
+- **重新生成模式**：执行所有9个子代理（步骤 2.1 - 2.9）+ document-integrator
 - **继续执行模式**：跳过已存在文件的子代理，只执行缺失的子代理
 - **选择特定章节模式**：只执行用户选择的子代理
 
-**步骤 2.1 - 2.10：调用各章节生成子代理**
+**附图编号管理**：
+
+使用全局附图编号计数器，确保附图编号连续：
+
+```
+初始化：current_figure_number = 1
+
+对每个章节生成器（03-07）：
+1. 调用时传入 current_figure_number 作为起始附图编号
+2. 章节生成器返回实际生成的附图数量
+3. 更新：current_figure_number += diagrams_generated
+
+示例：
+- solution-designer(起始编号=1) → 返回生成3幅图 → current_figure_number = 4
+- implementation-writer(起始编号=4) → 返回生成2幅图 → current_figure_number = 6
+```
+
+**步骤 2.1 - 2.9：调用各章节生成子代理**
 
 对每个需要执行的子代理，使用 Task 工具调用：
 
 ```
 1. title-generator        - 生成发明名称（如果 01_发明名称.md 不存在）
+   参数：idea（创新想法）
+
 2. field-analyzer         - 分析所属技术领域（如果 02_技术领域.md 不存在）
+   参数：idea, technical_field
+
 3. background-researcher  - 调研背景技术（如果 03_背景技术.md 不存在）
-   使用 web-search-prime, google-patents-mcp, exa, web-reader
+   参数：patent_type, idea, keywords, starting_figure_number={current_figure_number}
+   使用：web-search-prime, google-patents-mcp, exa, web-reader
+   返回：实际生成的附图数量（可能为0）
+   更新：current_figure_number += diagrams_generated
+
 4. problem-analyzer       - 分析解决的技术问题（如果 04_技术问题.md 不存在）
+   参数：patent_type, idea, background_content, starting_figure_number={current_figure_number}
+   返回：实际生成的附图数量（可能为0）
+   更新：current_figure_number += diagrams_generated
+
 5. solution-designer      - 设计技术方案（如果 05_技术方案.md 不存在）
-   使用 exa, web-search-prime
+   参数：patent_type, idea, starting_figure_number={current_figure_number}
+   使用：exa, web-search-prime
+   返回：实际生成的附图数量（可能为0）
+   更新：current_figure_number += diagrams_generated
+
 6. benefit-analyzer       - 分析有益效果（如果 06_有益效果.md 不存在）
+   参数：patent_type, solution_content, starting_figure_number={current_figure_number}
+   返回：实际生成的附图数量（可能为0）
+   更新：current_figure_number += diagrams_generated
+
 7. implementation-writer  - 编写具体实施方式（如果 07_具体实施方式.md 不存在）
-   使用 exa, web-search-prime
+   参数：patent_type, solution_content, starting_figure_number={current_figure_number}
+   使用：exa, web-search-prime
+   返回：实际生成的附图数量（可能为0）
+   更新：current_figure_number += diagrams_generated
+
 8. protection-extractor   - 提炼保护点（如果 08_专利保护点.md 不存在）
-   使用 google-patents-mcp
+   参数：idea, solution_content
+
 9. reference-collector    - 收集参考资料（如果 09_参考资料.md 不存在）
-   使用 google-patents-mcp, web-search-prime, web-reader
-10. diagram-generator     - 生成附图说明（如果 10_附图说明.md 不存在）
+   使用：google-patents-mcp, web-search-prime, web-reader
 ```
 
 **跳过逻辑示例**：
@@ -165,20 +265,26 @@ Glob: [0-9][0-9]_*.md
 → 执行 field-analyzer...
 ```
 
-**步骤 2.11：调用文档整合子代理**
+**步骤 2.10：调用文档整合子代理**
 
 所有必需章节生成完成后，调用 document-integrator：
 
 ```
-11. document-integrator   - 整合所有章节生成完整交底书
-   输入：patent_type（专利类型）
-   输出：Markdown 和 DOCX 格式的完整交底书
+10. document-integrator   - 整合所有章节生成完整交底书
+    输入：patent_type（专利类型）
+    输出：Markdown 格式的完整交底书（附图已嵌入在各章节中）
 ```
 
 ### 3. 输出结果
 
 - 每个子代理生成一个独立的 Markdown 文件
+- 附图以 Mermaid 代码块形式嵌入在对应章节文件中（03-07章节）
 - 最终生成完整的交底书文档：`专利申请技术交底书_[发明名称].md`
+
+**附图说明**：
+- 附图已由各章节生成器根据内容需要动态生成并嵌入到章节中
+- 附图编号从1开始连续编号（图1、图2、图3...）
+- 每幅附图包含：附图标题、Mermaid 代码块、附图说明文字
 
 ## MCP 工具说明
 
