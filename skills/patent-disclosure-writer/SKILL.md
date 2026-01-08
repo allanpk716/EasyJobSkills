@@ -1,6 +1,6 @@
 ---
 name: patent-disclosure-writer
-description: 自动生成专利申请技术交底书。当用户要求编写专利交底书、专利技术文档、专利申请书时使用此技能。自动搜索相关技术、分析现有方案、识别创新点，生成符合IP-JL-027标准的完整交底书，同时输出 Markdown 和 DOCX 格式。
+description: 自动生成专利申请技术交底书。当用户要求编写专利交底书、专利技术文档、专利申请书时使用此技能。自动搜索相关技术、分析现有方案、识别创新点，生成符合IP-JL-027标准的完整交底书（Markdown 格式）。可使用 /patent-md-2-docx 命令转换为 DOCX 格式。
 ---
 
 # 专利申请技术交底书自动化生成技能
@@ -10,8 +10,9 @@ description: 自动生成专利申请技术交底书。当用户要求编写专�
 本技能自动化分析、搜索、调研并编写《专利申请技术交底书》。用户只需提供基本的创新想法和思路，技能会自动搜索相关资料、分析现有技术、识别创新点，并生成完整的技术交底书。
 
 **输出格式**：
-- **优先输出**：Markdown 格式交底书（按 `out_templates/IP-JL-027(A／0)专利申请技术交底书模板.md` 模板格式）
-- **随后生成**：DOCX 格式交底书（从 Markdown 提取内容填写到 `out_templates/发明、实用新型专利申请交底书 模板.docx`）
+- **Markdown 格式交底书**（按 `out_templates/IP-JL-027(A／0)专利申请技术交底书模板.md` 模板格式）
+- **附图说明**：包含 Mermaid 代码块，可在支持 Mermaid 的编辑器中渲染
+- **DOCX 格式**：使用 `/patent-md-2-docx` 命令单独转换
 
 ## 使用场景
 
@@ -19,7 +20,8 @@ description: 自动生成专利申请技术交底书。当用户要求编写专�
 - 自动搜索和分析现有技术方案
 - 识别现有方案的缺陷和改进点
 - 调研相关专利和技术文献
-- 生成符合 IP-JL-027 标准的专利申请技术交底书（Markdown + DOCX 双格式）
+- 生成符合 IP-JL-027 标准的专利申请技术交底书（Markdown 格式）
+- 使用 `/patent-md-2-docx` 命令转换为正式的 DOCX 格式交底书
 
 ## 执行指令
 
@@ -152,23 +154,20 @@ Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合�
    → 输出: 09_其他有助于理解本技术的资料.md
        ↓
 10. diagram-generator (附图生成)
-    → 输出: 10_附图说明.mermaid
+    → 输出: 10_附图说明.md (Mermaid代码块)
        ↓
-11. diagram-inserter (附图插入) - 新增
-    → 将附图智能插入到交底书最相关章节
-    → Markdown格式: 嵌入Mermaid代码块
-    → DOCX格式: 渲染为PNG图片后插入
+11. document-integrator (文档整合)
+    → 输出 Markdown 格式交底书
+    → 将附图以 Mermaid 代码块形式插入
        ↓
-12. document-integrator (文档整合)
-    → 步骤1: 输出 Markdown 格式交底书
-    → 步骤2: 生成 DOCX 格式交底书
-       ↓
-   输出完整交底书 (Markdown + DOCX)
+   输出: 专利申请技术交底书_[发明名称].md
+
+可选：使用 /patent-md-2-docx 转换为 DOCX 格式
 ```
 
 ## 子代理配置
 
-技能使用 12 个专业化子代理完成各章节的撰写：
+技能使用 11 个专业化子代理完成各章节的撰写：
 
 | 子代理 | 对应章节 | 主要MCP工具 | 输出文件 |
 |--------|----------|-------------|----------|
@@ -181,9 +180,8 @@ Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合�
 | implementation-writer | 5.具体实施方式 | exa, web-search-prime | 07_具体实施方式.md |
 | protection-extractor | 6.关键点和欲保护点 | google-patents-mcp | 08_关键点和欲保护点.md |
 | reference-collector | 7.其他参考资料 | google-patents-mcp, web-search-prime, web-reader | 09_其他有助于理解本技术的资料.md |
-| diagram-generator | 附图说明 | - | 10_附图说明.md |
-| diagram-inserter | 附图插入 | mermaid-cli, python-docx | 附图插入报告.json + diagram_images/ |
-| document-integrator | 文档整合 | python-docx | 专利申请技术交底书_[发明名称].md + .docx |
+| diagram-generator | 附图说明 | - | 10_附图说明.md (Mermaid) |
+| document-integrator | 文档整合 | - | 专利申请技术交底书_[发明名称].md |
 
 ## 交底书章节结构
 
@@ -202,7 +200,7 @@ Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合�
 
 ## 输出格式要求（重要）
 
-### Markdown 格式（优先输出）
+### Markdown 格式输出
 
 document-integrator 子代理必须严格按照以下格式输出交底书：
 
@@ -245,12 +243,21 @@ document-integrator 子代理必须严格按照以下格式输出交底书：
 - 子章节：`### **（1）**`、`### **（2）**` 等（中文括号 + 粗体）
 - 不要添加模板中不存在的章节
 
-### DOCX 格式（随后生成）
+### 附图格式
 
-- 基于模板文件：`out_templates/发明、实用新型专利申请交底书 模板.docx`
-- 从 Markdown 文件中提取各章节内容
-- 使用 Python `python-docx` 库填写模板
-- 输出到 `output/` 文件夹
+附图以 Mermaid 代码块形式插入到 Markdown 文件中：
+
+```markdown
+**附图[图编号]：[附图名称]**
+
+```mermaid
+[Mermaid 代码]
+```
+
+图[图编号]说明：[附图说明文字]
+```
+
+**转换为 DOCX**：使用 `/patent-md-2-docx` 命令时，Mermaid 图表会被渲染为 PNG 图片并插入到 DOCX 文档中。
 
 ## 专利类型对生成策略的影响
 
@@ -371,19 +378,18 @@ document-integrator 子代理必须严格按照以下格式输出交底书：
 | exa | get_code_context_exa | 技术文档和代码搜索 | background-researcher, solution-designer, implementation-writer |
 | zai-mcp-server | - | 图像和文档分析 | 可选 |
 
-## Python 依赖要求
+## 依赖要求
 
-### Python 库依赖
+### DOCX 转换依赖（可选）
 
-document-integrator 和 diagram-inserter 子代理需要以下 Python 库：
+如果需要将 Markdown 交底书转换为 DOCX 格式，需要安装以下依赖：
+
+**Python 库**：
 ```bash
 pip install python-docx
 ```
 
-### Node.js 依赖（新增）
-
-diagram-inserter 子代理需要以下 Node.js 工具来渲染 Mermaid 图表：
-
+**Node.js 工具**（用于渲染附图）：
 ```bash
 # 安装 mermaid-cli
 npm install -g @mermaid-js/mermaid-cli
@@ -392,7 +398,9 @@ npm install -g @mermaid-js/mermaid-cli
 mmdc --version
 ```
 
-**mermaid-cli** 用于将 Mermaid 代码渲染为 PNG 图片，以便插入到 DOCX 文档中。
+**字体**：思源黑体 CN（Source Han Sans）
+- 下载: https://github.com/adobe-fonts/source-han-sans/releases
+- 安装: Windows 右键安装，macOS 双击安装
 
 ## 子代理执行顺序
 
@@ -418,14 +426,10 @@ mmdc --version
 9. diagram-generator
 10. reference-collector（可提前进行）
 
-**第六阶段：附图插入（新增）**
-11. diagram-inserter
-    - 将附图智能插入到交底书最相关章节
-
-**第七阶段：文档整合**
-12. document-integrator
-    - 步骤1：生成 Markdown 格式
-    - 步骤2：生成 DOCX 格式
+**第六阶段：文档整合**
+11. document-integrator
+    - 生成 Markdown 格式交底书
+    - 将附图以 Mermaid 代码块形式插入
 
 ## 输出文件说明
 
@@ -437,9 +441,10 @@ mmdc --version
 
 最终 document-integrator 汇总所有文件生成完整交底书：
 - Markdown 格式：`专利申请技术交底书_[发明名称].md`
-- DOCX 格式：`output/专利申请技术交底书_[发明名称].docx`
+
+**转换为 DOCX**：使用 `/patent-md-2-docx` 命令将 Markdown 转换为正式的 DOCX 格式。
 
 ## 模板文件位置
 
-- Markdown 模板：`out_templates/IP-JL-027(A／0)专利申请技术交底书模板.md`
-- DOCX 模板：`out_templates/发明、实用新型专利申请交底书 模板.docx`
+- Markdown 模板：`skills/patent-disclosure-writer/templates/IP-JL-027(A／0)专利申请技术交底书模板.md`
+- DOCX 模板：`skills/patent-disclosure-writer/templates/发明、实用新型专利申请交底书 模板.docx`
