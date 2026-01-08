@@ -32,8 +32,12 @@ description: 自动生成专利申请技术交底书。当用户要求编写专�
 - **关键词**（keywords）：可选的关键词列表
 - **专利类型**（patent_type）：目标专利类型，默认为"发明专利"
   - 选项：发明专利 / 实用新型专利
+- **输出目录**（output_dir）：交底书输出目录，默认为当前工作目录下的 `output/` 文件夹
 
-**重要**：记录用户选择的专利类型，后续传递给所有子代理
+**重要**：
+1. 记录用户选择的专利类型，后续传递给所有子代理
+2. 确定输出目录路径，后续传递给需要访问文件的子代理（如 diagram-generator）
+3. 确保输出目录存在，如不存在则创建
 
 ### 2. 按顺序调用子代理（使用 Task 工具）
 
@@ -63,7 +67,7 @@ Task(tool="implementation-writer", prompt="技术方案：{技术方案内容}�
 Task(tool="protection-extractor", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
 
 # 第五阶段：补充材料
-Task(tool="diagram-generator", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
+Task(tool="diagram-generator", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}，输出目录：{output_dir}")
 
 Task(tool="reference-collector", prompt="技术领域：{technical_field}，专利类型：{patent_type}")
 
