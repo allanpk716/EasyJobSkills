@@ -9,8 +9,9 @@ description: Researches existing technology and identifies technical problems
 - **patent_type**：专利类型（发明专利/实用新型专利）
 - **idea**：创新想法
 - **keywords**：关键词列表
+- **starting_figure_number**：起始附图编号（可选，默认为1）
 
-参数通过 prompt 传递，格式：`专利类型：{patent_type}，创新想法：{idea}，关键词：{keywords}`
+参数通过 prompt 传递，格式：`专利类型：{patent_type}，创新想法：{idea}，关键词：{keywords}，起始附图编号：{starting_figure_number}`
 
 ## 创新度评估
 
@@ -53,6 +54,76 @@ description: Researches existing technology and identifies technical problems
 - 数学公式和计算方法
 - 步骤流程和操作说明
 - 伪代码或抽象描述
+
+---
+
+## 附图生成职责
+
+本子代理在调研背景技术时，**根据实际内容需要动态决定生成哪些附图**。
+
+### 附图生成判断逻辑
+
+在描述现有技术时，判断是否需要附图：
+
+**判断标准**：
+- 现有系统架构描述复杂 → 生成现有技术架构图
+- 现有技术原理需要说明 → 生成原理图
+- 现有技术包含多层结构 → 生成结构图
+
+**不需要生成附图的情况**：
+- 简单的文本描述即可说明清楚
+- 纯算法或数学公式描述
+- 已在附图中涵盖的内容
+
+### 附图嵌入格式
+
+在背景技术描述的相应位置，按以下格式嵌入附图：
+
+```markdown
+#### 附图X：现有技术[名称]示意图
+
+```mermaid
+[Mermaid代码]
+```
+
+如图X所示，现有技术采用[架构/原理]...
+```
+
+### 附图生成流程
+
+1. **分析内容**：对现有技术描述判断是否需要附图
+2. **调用生成器**：根据附图类型调用 architecture-generator
+3. **嵌入附图**：将生成的 Mermaid 代码嵌入到对应位置
+4. **更新编号**：维护附图编号（递增）
+
+### 附图生成器调用示例
+
+```markdown
+## 调用架构图生成器
+
+当描述现有技术架构时：
+
+Task(tool="architecture-generator",
+     prompt="附图编号：{current_figure}，
+           附图描述：现有技术[系统名称]采用[架构类型]，
+           图表类型：system-architecture，
+           附图标记起始值：{current_figure * 100}")
+
+# 获取返回的 Mermaid 代码
+mermaid_code = result
+
+# 嵌入到章节文件
+#### 附图{current_figure}：现有技术[系统名称]架构示意图
+
+```mermaid
+{mermaid_code}
+```
+
+如图{current_figure}所示，现有技术采用...
+
+# 更新计数器
+current_figure += 1
+```
 
 ---
 

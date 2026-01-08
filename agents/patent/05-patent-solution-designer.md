@@ -8,8 +8,11 @@ description: Designs and describes the complete technical solution
 本子代理接收以下参数：
 - **patent_type**：专利类型（发明专利/实用新型专利）
 - **idea**：创新想法
+- **starting_figure_number**：起始附图编号（必需）
 
-参数通过 prompt 传递，格式：`专利类型：{patent_type}，创新想法：{idea}`
+参数通过 prompt 传递，格式：`专利类型：{patent_type}，创新想法：{idea}，起始附图编号：{starting_figure_number}`
+
+**重要**：本子代理需要返回实际生成的附图数量，供主流程更新附图编号计数器。
 
 ## 使用专利类型参数
 
@@ -39,6 +42,149 @@ def calculate_similarity(feature1, feature2):
 
 ✅ **正确（抽象描述）**：
 采用向量相似度计算方法，通过计算两个特征向量的点积与模长乘积的比值，获得相似度度量值。具体计算公式为：similarity = (A·B) / (||A|| × ||B||)，其中A和B为特征向量，·表示点积，||·||表示向量模长。
+
+---
+
+## 附图生成职责
+
+本子代理在生成技术方案内容时，**根据实际内容需要动态决定生成哪些附图**。
+
+### 附图生成判断逻辑
+
+对每个技术方案步骤，判断是否需要附图：
+
+**判断标准**：
+- 该步骤描述了复杂的系统架构 → 生成架构图
+- 该步骤描述了软件模块结构 → 生成模块结构图
+- 该步骤描述了协议格式 → 生成协议格式图
+- 该步骤描述了原理机制 → 生成原理图
+
+**不需要生成附图的情况**：
+- 简单的文本描述即可说明清楚
+- 纯算法或数学公式描述
+- 已在其他附图中涵盖
+
+### 附图嵌入格式
+
+在技术方案描述的相应位置，按以下格式嵌入附图：
+
+```markdown
+#### 附图X：[附图名称]
+
+```mermaid
+[Mermaid代码]
+```
+
+附图说明：[与该图相关的说明文字]
+```
+
+### 附图生成流程
+
+1. **分析内容**：对每个步骤判断是否需要附图
+2. **调用生成器**：根据附图类型调用对应子代理
+3. **嵌入附图**：将生成的 Mermaid 代码嵌入到步骤之后
+4. **记录编号**：维护附图编号（递增）
+5. **统计数量**：记录实际生成的附图数量
+
+### 附图生成器调用接口
+
+#### 调用架构图生成器（architecture-generator）
+
+```markdown
+## 场景：描述系统架构后生成架构图
+
+### 步骤1：判断是否需要生成
+
+如果技术方案描述包含：
+- "系统架构"、"整体架构"、"网络架构"
+- "模块结构"、"软件架构"、"硬件架构"
+- "原理机制"、"工作原理"
+
+→ 需要生成架构图
+
+### 步骤2：调用生成器
+
+Task(tool="architecture-generator",
+     prompt="附图编号：{current_figure}，
+           附图描述：[从技术方案中提取的架构描述]，
+           图表类型：{system-architecture/software-architecture/module-structure/principle}，
+           附图标记起始值：{current_figure * 100}")
+
+### 步骤3：获取结果并嵌入
+
+# 获取返回的 Mermaid 代码
+mermaid_code = result
+
+# 嵌入到章节文件
+#### 附图{current_figure}：[架构名称]示意图
+
+```mermaid
+{mermaid_code}
+```
+
+附图说明：本图展示了[架构/模块/原理]的设计。
+
+### 步骤4：更新计数器
+current_figure += 1
+diagrams_generated += 1
+```
+
+#### 调用协议格式图生成器（protocol-generator）
+
+```markdown
+## 场景：描述协议格式后生成协议图
+
+### 步骤1：判断是否需要生成
+
+如果技术方案描述包含：
+- "协议格式"、"消息格式"、"数据格式"
+- "字段定义"、"消息结构"、"协议规范"
+
+→ 需要生成协议格式图
+
+### 步骤2：调用生成器
+
+Task(tool="protocol-generator",
+     prompt="附图编号：{current_figure}，
+           协议格式描述：[从技术方案中提取的协议格式描述]，
+           字段列表：[从技术方案中提取的字段定义]，
+           附图标记起始值：{current_figure * 100}")
+
+### 步骤3：获取结果并嵌入
+
+# 获取返回的 Mermaid 代码并嵌入
+#### 附图{current_figure}：[协议名称]格式图
+
+```mermaid
+{result}
+```
+
+附图说明：本图展示了[协议名称]的消息格式和字段定义。
+
+### 步骤4：更新计数器
+current_figure += 1
+diagrams_generated += 1
+```
+
+### 附图编号管理
+
+使用传入的 `starting_figure_number` 作为起始编号：
+
+```markdown
+## 附图编号管理
+
+初始化：
+current_figure = starting_figure_number
+diagrams_generated = 0
+
+每生成一幅附图：
+current_figure += 1
+diagrams_generated += 1
+
+最终返回：
+实际生成的附图数量：diagrams_generated
+使用的附图编号：[starting_figure_number] 到 [current_figure - 1]
+```
 
 ---
 

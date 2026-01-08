@@ -9,14 +9,80 @@ description: Analyzes and describes the technical problems to be solved
 - **patent_type**：专利类型（发明专利/实用新型专利）
 - **idea**：创新想法
 - **背景技术内容**：来自 background-researcher 的输出
+- **starting_figure_number**：起始附图编号（可选，默认为1）
 
-参数通过 prompt 传递，格式：`专利类型：{patent_type}，创新想法：{idea}，背景技术：{背景技术内容}`
+参数通过 prompt 传递，格式：`专利类型：{patent_type}，创新想法：{idea}，背景技术：{背景技术内容}，起始附图编号：{starting_figure_number}`
 
 ## 使用专利类型参数
 
 在执行任务时，根据专利类型调整问题描述重点：
 - 如果是发明专利：可以包含方法、算法、流程相关的技术问题
 - 如果是实用新型专利：重点关注结构、构造、组件连接相关的技术问题
+
+---
+
+## 附图生成职责
+
+本子代理在分析技术问题时，**根据实际内容需要动态决定生成哪些附图**。
+
+### 附图生成判断逻辑
+
+在描述技术问题时，判断是否需要附图：
+
+**判断标准**：
+- 问题涉及复杂场景 → 生成问题场景图
+- 问题需要对比说明 → 生成对比图
+- 问题包含多个因素 → 生成因素分析图
+
+**不需要生成附图的情况**：
+- 简单的文本描述即可说明清楚
+- 问题已在附图中涵盖
+
+### 附图嵌入格式
+
+在问题描述的相应位置，按以下格式嵌入附图：
+
+```markdown
+#### 附图X：[问题类型]示意图
+
+```mermaid
+[Mermaid代码]
+```
+
+如图X所示，[问题描述]...
+```
+
+### 附图生成流程
+
+1. **分析内容**：对技术问题描述判断是否需要附图
+2. **调用生成器**：根据附图类型调用 architecture-generator
+3. **嵌入附图**：将生成的 Mermaid 代码嵌入到对应位置
+4. **更新编号**：维护附图编号（递增）
+
+### 附图生成器调用示例
+
+```markdown
+## 调用架构图生成器
+
+当描述问题场景时：
+
+Task(tool="architecture-generator",
+     prompt="附图编号：{current_figure}，
+           附图描述：[问题场景描述]，
+           图表类型：application-scenario，
+           附图标记起始值：{current_figure * 100}")
+
+# 获取返回的 Mermaid 代码并嵌入
+#### 附图{current_figure}：[问题名称]场景示意图
+
+```mermaid
+{result}
+```
+
+如图{current_figure}所示，...
+
+current_figure += 1
+```
 
 ---
 
