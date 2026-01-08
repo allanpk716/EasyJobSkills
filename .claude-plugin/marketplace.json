@@ -1,0 +1,24 @@
+{
+  "name": "easy-job-skills",
+  "displayName": "EasyJob Skills Marketplace",
+  "owner": {
+    "name": "allanpk716",
+    "email": "allanpk716@gmail.com"
+  },
+  "metadata": {
+    "description": "专注于提升工作效率的 Claude Code 技能集合，包括专利交底书自动化生成等实用工具。",
+    "version": "1.0.0",
+    "homepage": "https://github.com/allanpk716/EasyJobSkills"
+  },
+  "plugins": [
+    {
+      "name": "easy-job-skills",
+      "description": "提升工作效率的技能集合，包括专利文档自动化生成工具",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/patent-disclosure-writer"
+      ]
+    }
+  ]
+}
