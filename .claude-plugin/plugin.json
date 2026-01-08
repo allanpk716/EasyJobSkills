@@ -7,7 +7,6 @@
     "email": "allanpk716@gmail.com"
   },
   "homepage": "https://github.com/allanpk716/EasyJobSkills",
-  "agents": "./agents/patent/",
   "skills": [
     "./skills/patent-disclosure-writer"
   ],
