@@ -61,23 +61,32 @@ skills/
 
 ### 专利交底书生成器 (patent-disclosure-writer)
 
-自动化生成符合 IP-JL-027 标准的专利申请技术交底书，支持 Markdown + DOCX 双格式输出。
+自动化生成符合 IP-JL-027 标准的专利申请技术交底书，支持发明专利和实用新型专利。
 
 **功能特性**：
 - 自动搜索和分析现有技术方案
 - 识别现有方案的缺陷和改进点
 - 调研相关专利和技术文献
-- 11 个专业化子代理协作完成各章节撰写
-- 双格式输出：Markdown + DOCX
+- 自动创新度评估，建议专利类型
+- 智能检测已有章节，支持断点续传
+- 附图自动生成和编号管理
+- 支持 Markdown + DOCX 双格式输出
 
-**使用方式**：
-```bash
-/patent
-```
+**斜杠命令**：
+| 命令 | 功能 |
+|------|------|
+| `/patent` | 智能生成交底书（支持断点续传、选择性重新生成） |
+| `/patent-update-diagrams` | 智能补充附图 |
+| `/patent-md-2-docx` | Markdown 转 DOCX |
 
 **技能资源**：
 - 模板文件：`skills/patent-disclosure-writer/templates/`
 - 子代理：`.claude/agents/`（共享）
+- 文档：
+  - [用户文档](skills/patent-disclosure-writer/README.md)
+  - [配置指南](skills/patent-disclosure-writer/CONFIG.md)
+  - [子代理详解](skills/patent-disclosure-writer/AGENTS.md)
+  - [故障排查](skills/patent-disclosure-writer/TROUBLESHOOTING.md)
 
 ## 安装 Marketplace
 

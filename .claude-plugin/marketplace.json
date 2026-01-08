@@ -7,7 +7,7 @@
   },
   "metadata": {
     "description": "专注于提升工作效率的 Claude Code 技能集合，包括专利交底书自动化生成等实用工具。",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "homepage": "https://github.com/allanpk716/EasyJobSkills"
   },
   "plugins": [
@@ -22,6 +22,7 @@
       ],
       "commands": [
         "./commands/patent.md",
+        "./commands/patent-update-diagrams.md",
         "./commands/patent-md-2-docx.md"
       ]
     }

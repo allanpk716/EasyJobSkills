@@ -1,435 +1,134 @@
 ---
 name: patent-disclosure-writer
-description: 自动生成专利申请技术交底书。当用户要求编写专利交底书、专利技术文档、专利申请书时使用此技能。自动搜索相关技术、分析现有方案、识别创新点，生成符合IP-JL-027标准的完整交底书（Markdown 格式）。可使用 /patent-md-2-docx 命令转换为 DOCX 格式。
+description: 自动生成专利申请技术交底书，符合IP-JL-027标准。支持发明专利和实用新型专利，可转换为DOCX格式。
 ---
 
-# 专利申请技术交底书自动化生成技能
+# 专利交底书自动生成
 
 ## 技能概述
 
 本技能自动化分析、搜索、调研并编写《专利申请技术交底书》。用户只需提供基本的创新想法和思路，技能会自动搜索相关资料、分析现有技术、识别创新点，并生成完整的技术交底书。
 
 **输出格式**：
-- **Markdown 格式交底书**（按 `out_templates/IP-JL-027(A／0)专利申请技术交底书模板.md` 模板格式）
-- **附图说明**：包含 Mermaid 代码块，可在支持 Mermaid 的编辑器中渲染
-- **DOCX 格式**：使用 `/patent-md-2-docx` 命令单独转换
+- **Markdown 格式交底书**（按模板格式）
+- **附图说明**：包含 Mermaid 代码块
+- **DOCX 格式**：使用 `/patent-md-2-docx` 命令转换
 
-## 使用场景
+## 快速开始
 
-当你有一个创新想法或技术改进思路时，使用此技能可以：
-- 自动搜索和分析现有技术方案
-- 识别现有方案的缺陷和改进点
-- 调研相关专利和技术文献
-- 生成符合 IP-JL-027 标准的专利申请技术交底书（Markdown 格式）
-- 使用 `/patent-md-2-docx` 命令转换为正式的 DOCX 格式交底书
+### 1. 确保已配置 MCP 服务
 
-## 执行指令
+本技能依赖以下 MCP 服务（必须先配置）：
+- web-search-prime（网络搜索）
+- web-reader（网页内容提取）
+- google-patents-mcp（专利检索）
+- exa（技术文档搜索）
 
-当用户请求编写专利交底书时，必须按以下步骤执行：
+**配置方法**：见 [CONFIG.md](CONFIG.md)
 
-### 1. 收集输入信息
-询问用户以下信息：
+### 2. 运行生成命令
+
+```bash
+/patent
+```
+
+按提示输入：
 - **创新想法**（idea）：创新想法的描述
 - **所属技术领域**（technical_field）：所属技术领域
 - **关键词**（keywords）：可选的关键词列表
-- **专利类型**（patent_type）：目标专利类型，默认为"发明专利"
-  - 选项：发明专利 / 实用新型专利
-- **输出目录**（output_dir）：交底书输出目录，默认为当前工作目录下的 `output/` 文件夹
+- **专利类型**（patent_type）：发明专利/实用新型专利（默认发明专利）
+- **输出目录**（output_dir）：交底书输出目录（默认 `output/`）
 
-**重要**：
-1. 记录用户选择的专利类型，后续传递给所有子代理
-2. 确定输出目录路径，后续传递给需要访问文件的子代理（如 diagram-generator）
-3. 确保输出目录存在，如不存在则创建
+### 3. 等待生成完成
 
-### 2. 按顺序调用子代理（使用 Task 工具）
+技能将自动调用多个子代理完成各章节撰写，最终生成：
+- 完整的 Markdown 格式交底书
+- 各章节独立文件（便于审核和修改）
+- 附图（Mermaid 代码块形式）
 
-**关键原则**：每次调用子代理时，必须在 prompt 中包含专利类型参数
+### 4. 转换为 DOCX（可选）
 
 ```bash
-# 第一阶段：基础信息生成
-Task(tool="title-generator", prompt="用户创新想法：{idea}，技术领域：{technical_field}，专利类型：{patent_type}")
-
-Task(tool="field-analyzer", prompt="技术领域：{technical_field}，专利类型：{patent_type}")
-
-# 第二阶段：背景调研（创新度评估点）
-Task(tool="background-researcher", prompt="创新想法：{idea}，关键词：{keywords}，专利类型：{patent_type}")
-# 等待子代理返回，检查是否建议降级到实用新型专利
-# 如果建议降级，询问用户是否接受，并更新 patent_type
-
-# 第三阶段：发明内容撰写
-Task(tool="problem-analyzer", prompt="创新想法：{idea}，背景技术：{背景技术内容}，专利类型：{patent_type}")
-
-Task(tool="solution-designer", prompt="创新想法：{idea}，专利类型：{patent_type}")
-
-Task(tool="benefit-analyzer", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
-
-# 第四阶段：实施与保护
-Task(tool="implementation-writer", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
-
-Task(tool="protection-extractor", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
-
-# 第五阶段：补充材料
-Task(tool="diagram-generator", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}，输出目录：{output_dir}")
-
-Task(tool="reference-collector", prompt="技术领域：{technical_field}，专利类型：{patent_type}")
-
-# 第六阶段：附图插入（新增）
-Task(tool="diagram-inserter", prompt="Markdown文件：{markdown_file_path}，附图说明：{output_dir}/10_附图说明.md，输出目录：{output_dir}，专利类型：{patent_type}")
-
-# 第七阶段：文档整合
-Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合所有章节")
+/patent-md-2-docx
 ```
 
-**创新度评估和降级提醒机制**：
+## 使用场景
 
-在 background-researcher 完成后检查输出：
-- 如果子代理返回降级建议（如"⚠️ 创新度提醒：建议降级到实用新型专利"）
-- 向用户展示该建议并询问是否接受
-- 如果用户接受降级：更新 `patent_type = "实用新型专利"`，后续子代理使用新类型
-- 如果用户坚持发明专利：继续流程，但记录用户选择
+- 编写发明专利申请交底书
+- 编写实用新型专利申请交底书
+- 从创新想法到完整交底书的全流程自动化
 
-### 3. 输出文件管理
-每个子代理完成后，确认输出文件已生成
+## 斜杠命令
 
-### 4. 最终交付
-向用户展示完整交底书路径和各章节文件（Markdown 和 DOCX）
+| 命令 | 功能 | 说明 |
+|------|------|------|
+| `/patent` | 智能生成交底书 | 支持断点续传、选择性重新生成 |
+| `/patent-update-diagrams` | 智能补充附图 | 扫描章节并补充缺失的附图 |
+| `/patent-md-2-docx` | Markdown 转 DOCX | 将 Markdown 交底书转换为正式格式 |
 
-**重要**：必须使用 Task 工具调用子代理，直接传递用户输入。不要尝试自己完成子代理的工作。
-
-## 参数说明
-
-| 参数 | 说明 | 必需 | 默认值 |
-|------|------|------|--------|
-| idea | 创新想法的描述 | 是 | - |
-| technical_field | 所属技术领域 | 是 | - |
-| keywords | 关键词列表 | 否 | - |
-| patent_type | 目标专利类型 | 否 | 发明专利 |
-
-**专利类型说明**：
-- **发明专利**：要求更高的创新性，保护产品、方法或其改进提出的新的技术方案
-  - 审查周期：2-3年
-  - 保护期限：20年
-  - 创新要求：突出的实质性特点和显著的进步
-
-- **实用新型专利**：主要保护产品形状、构造或其结合
-  - 审查周期：6-12个月
-  - 保护期限：10年
-  - 创新要求：实质性特点和进步
-
-## 工作流程
+## 执行流程概览
 
 ```
 用户输入创新想法
        ↓
-1. title-generator (发明名称生成)
-   → 输出: 01_发明名称.md
+1. title-generator (发明名称)
+2. field-analyzer (技术领域)
+3. background-researcher (背景技术调研 + 创新度评估)
+4. problem-analyzer (技术问题)
+5. solution-designer (技术方案)
+6. benefit-analyzer (有益效果)
+7. implementation-writer (实施方式)
+8. protection-extractor (保护点)
+9. reference-collector (参考资料)
+10. document-integrator (文档整合)
        ↓
-2. field-analyzer (技术领域分析)
-   → 输出: 02_所属技术领域.md
-       ↓
-3. background-researcher (背景技术调研)
-   → 使用: web-search-prime, google-patents-mcp, exa, web-reader
-   → 输出: 03_相关的背景技术.md
-       ↓
-4. problem-analyzer (技术问题分析)
-   → 输出: 04_解决的技术问题.md
-       ↓
-5. solution-designer (技术方案设计)
-   → 使用: exa, web-search-prime
-   → 输出: 05_技术方案.md
-       ↓
-6. benefit-analyzer (有益效果分析)
-   → 输出: 06_有益效果.md
-       ↓
-7. implementation-writer (实施方式编写)
-   → 使用: exa, web-search-prime
-   → 输出: 07_具体实施方式.md
-       ↓
-8. protection-extractor (保护点提炼)
-   → 使用: google-patents-mcp
-   → 输出: 08_关键点和欲保护点.md
-       ↓
-9. reference-collector (参考资料收集)
-   → 使用: google-patents-mcp, web-search-prime, web-reader
-   → 输出: 09_其他有助于理解本技术的资料.md
-       ↓
-10. diagram-generator (附图生成)
-    → 输出: 10_附图说明.md (Mermaid代码块)
-       ↓
-11. document-integrator (文档整合)
-    → 输出 Markdown 格式交底书
-    → 将附图以 Mermaid 代码块形式插入
-       ↓
-   输出: 专利申请技术交底书_[发明名称].md
-
-可选：使用 /patent-md-2-docx 转换为 DOCX 格式
+输出: 专利申请技术交底书_[发明名称].md
 ```
 
-## 子代理配置
+## 子代理列表
 
-技能使用 11 个专业化子代理完成各章节的撰写：
+| 子代理 | 对应章节 | 输出文件 |
+|--------|----------|----------|
+| title-generator | 1.发明创造名称 | 01_发明名称.md |
+| field-analyzer | 2.所属技术领域 | 02_所属技术领域.md |
+| background-researcher | 3.相关的背景技术 | 03_相关的背景技术.md |
+| problem-analyzer | 4.(1)解决的技术问题 | 04_解决的技术问题.md |
+| solution-designer | 4.(2)技术方案 | 05_技术方案.md |
+| benefit-analyzer | 4.(3)有益效果 | 06_有益效果.md |
+| implementation-writer | 5.具体实施方式 | 07_具体实施方式.md |
+| protection-extractor | 6.关键点和欲保护点 | 08_关键点和欲保护点.md |
+| reference-collector | 7.其他参考资料 | 09_其他有助于理解本技术的资料.md |
+| document-integrator | 文档整合 | 专利申请技术交底书_[发明名称].md |
 
-| 子代理 | 对应章节 | 主要MCP工具 | 输出文件 |
-|--------|----------|-------------|----------|
-| title-generator | 1.发明创造名称 | - | 01_发明名称.md |
-| field-analyzer | 2.所属技术领域 | - | 02_所属技术领域.md |
-| background-researcher | 3.相关的背景技术 | web-search-prime, google-patents-mcp, exa, web-reader | 03_相关的背景技术.md |
-| problem-analyzer | 4.(1)解决的技术问题 | - | 04_解决的技术问题.md |
-| solution-designer | 4.(2)技术方案 | exa, web-search-prime | 05_技术方案.md |
-| benefit-analyzer | 4.(3)有益效果 | - | 06_有益效果.md |
-| implementation-writer | 5.具体实施方式 | exa, web-search-prime | 07_具体实施方式.md |
-| protection-extractor | 6.关键点和欲保护点 | google-patents-mcp | 08_关键点和欲保护点.md |
-| reference-collector | 7.其他参考资料 | google-patents-mcp, web-search-prime, web-reader | 09_其他有助于理解本技术的资料.md |
-| diagram-generator | 附图说明 | - | 10_附图说明.md (Mermaid) |
-| document-integrator | 文档整合 | - | 专利申请技术交底书_[发明名称].md |
+**详细信息**：见 [AGENTS.md](AGENTS.md)
 
-## 交底书章节结构
+## 专利类型说明
 
-生成的交底书符合 IP-JL-027 标准模板，包含以下章节：
+| 类型 | 创新要求 | 审查周期 | 保护期限 |
+|------|---------|---------|----------|
+| **发明专利** | 突出的实质性特点和显著的进步 | 2-3年 | 20年 |
+| **实用新型专利** | 实质性特点和进步 | 6-12个月 | 10年 |
 
-1. **发明创造名称** - 发明的通用名称或核心技术描述
-2. **所属技术领域** - 技术方案所属领域描述
-3. **相关的背景技术** - 技术领域现状及存在的技术问题
-4. **发明内容**
-   - （1）解决的技术问题
-   - （2）技术方案
-   - （3）有益效果
-5. **具体实施方式** - 具体实施方案和工作原理
-6. **关键点和欲保护点** - 技术方案的关键创新点
-7. **其他有助于理解本技术的资料** - 参考文献等
+**创新度评估**：background-researcher 会自动评估创新程度，如果建议降级到实用新型专利，会询问你是否接受。
 
-## 输出格式要求（重要）
+## MCP 工具依赖
 
-### Markdown 格式输出
+本技能依赖以下 MCP 服务：
 
-document-integrator 子代理必须严格按照以下格式输出交底书：
+| MCP 服务 | 用途 | 使用的子代理 |
+|---------|------|--------------|
+| web-search-prime | 网络搜索 | background-researcher, solution-designer, implementation-writer, reference-collector |
+| web-reader | 网页内容提取 | background-researcher, reference-collector |
+| google-patents-mcp | 专利检索 | background-researcher, protection-extractor, reference-collector |
+| exa | 技术文档搜索 | background-researcher, solution-designer, implementation-writer |
 
-```markdown
-# 发明/实用新型专利申请交底书
+**配置方法**：见 [CONFIG.md](CONFIG.md)
 
-## **1. 发明创造名称**
-[内容]
+## 详细文档
 
-## **2. 所属技术领域**
-[内容]
-
-## **3. 相关的背景技术**
-[内容]
-
-## **4. 发明内容**
-
-### **（1）解决的技术问题**
-[内容]
-
-### **（2）技术方案**
-[内容]
-
-### **（3）有益效果**
-[内容]
-
-## **5. 具体实施方式**
-[内容]
-
-## **6. 关键点和欲保护点**
-[内容]
-
-## **7. 其他有助于理解本技术的资料**
-[内容]
-```
-
-**格式规范**：
-- 章节编号：`## **1. **`、`## **2. **` 等（阿拉伯数字 + 粗体）
-- 章节标题：`**发明创造名称**`（粗体）
-- 子章节：`### **（1）**`、`### **（2）**` 等（中文括号 + 粗体）
-- 不要添加模板中不存在的章节
-
-### 附图格式
-
-附图以 Mermaid 代码块形式插入到 Markdown 文件中：
-
-```markdown
-**附图[图编号]：[附图名称]**
-
-```mermaid
-[Mermaid 代码]
-```
-
-图[图编号]说明：[附图说明文字]
-```
-
-**转换为 DOCX**：使用 `/patent-md-2-docx` 命令时，Mermaid 图表会被渲染为 PNG 图片并插入到 DOCX 文档中。
-
-## 专利类型对生成策略的影响
-
-### 发明专利策略
-- **背景调研**：深度检索，包括国内外专利、学术论文、技术标准
-- **技术方案**：强调技术原理、算法创新、方法创新
-- **实施方式**：提供详细的实验数据、性能对比、创新点验证
-- **保护范围**：宽泛的权利要求，涵盖多种实现方式
-
-### 实用新型专利策略
-- **背景调研**：重点检索产品结构、构造相关专利
-- **技术方案**：强调产品形状、构造、组件连接关系
-- **实施方式**：提供具体的结构图、连接方式、组件参数
-- **保护范围**：具体的结构特征，避免功能性描述
-
-### 搜索深度差异
-
-| 搜索类型 | 发明专利 | 实用新型专利 |
-|---------|---------|-------------|
-| 专利检索 | 深度检索5-10年 | 检索3-5年 |
-| 学术文献 | 必需检索 | 可选检索 |
-| 技术标准 | 必需检索 | 可选检索 |
-| 产品资料 | 重点检索 | 重点检索 |
-
-## MCP 工具依赖（必须配置）
-
-本技能依赖以下 MCP 服务，使用前**必须**完成配置：
-
-### 必需的 MCP 服务
-
-| MCP 服务 | 用途 | 使用的子代理 | 配置方式 |
-|---------|------|--------------|----------|
-| web-search-prime | 网络搜索 | background-researcher, solution-designer, implementation-writer, reference-collector | 智谱 API（HTTP） |
-| web-reader | 网页内容提取 | background-researcher, reference-collector | 智谱 API（HTTP） |
-| google-patents-mcp | 专利检索 | background-researcher, protection-extractor, reference-collector | npx + SerpAPI |
-| exa | 技术文档搜索 | background-researcher, solution-designer, implementation-writer | npx + Exa API |
-
-### 配置步骤
-
-在 `~/.claude/settings.json` 或 `.claude.json` 中添加以下 MCP 服务配置：
-
-```json
-{
-  "mcpServers": {
-    "web-search-prime": {
-      "type": "http",
-      "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_ZHIPU_API_KEY"
-      }
-    },
-    "web-reader": {
-      "type": "http",
-      "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_ZHIPU_API_KEY"
-      }
-    },
-    "google-patents-mcp": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@kunihiros/google-patents-mcp"
-      ],
-      "env": {
-        "SERPAPI_API_KEY": "YOUR_SERPAPI_KEY"
-      }
-    },
-    "exa": {
-      "type": "stdio",
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "exa-mcp-server"
-      ],
-      "env": {
-        "EXA_API_KEY": "YOUR_EXA_API_KEY"
-      }
-    }
-  }
-}
-```
-
-### API 密钥获取
-
-| 服务 | 获取地址 |
-|------|----------|
-| 智谱 API（web-search-prime/web-reader） | https://open.bigmodel.cn/ |
-| SerpAPI（google-patents-mcp） | https://serpapi.com/ |
-| Exa API（exa） | https://exa.ai/api-key |
-
-### 配置验证
-
-配置完成后，在 Claude Code 中运行以下命令验证 MCP 服务是否正常：
-
-```bash
-# 查看已加载的 MCP 服务
-/mcp list
-```
-
-确保以下工具可用：
-- `mcp__web-search-prime__webSearchPrime`
-- `mcp__web_reader__webReader`
-- `mcp__google-patents-mcp__search_patents`
-- `mcp__exa__get_code_context_exa`
-
-### MCP 工具使用映射
-
-| MCP服务 | 工具名称 | 主要用途 | 使用的子代理 |
-|---------|----------|----------|--------------|
-| web-search-prime | webSearchPrime | 网络搜索 | background-researcher, solution-designer, implementation-writer, reference-collector |
-| web-reader | webReader | 网页内容提取 | background-researcher, reference-collector |
-| google-patents-mcp | search_patents | 专利检索 | background-researcher, protection-extractor, reference-collector |
-| exa | get_code_context_exa | 技术文档和代码搜索 | background-researcher, solution-designer, implementation-writer |
-| zai-mcp-server | - | 图像和文档分析 | 可选 |
-
-## 依赖要求
-
-### DOCX 转换依赖（可选）
-
-如果需要将 Markdown 交底书转换为 DOCX 格式，需要安装以下依赖：
-
-**Python 库**：
-```bash
-pip install python-docx
-```
-
-**Node.js 工具**（用于渲染附图）：
-```bash
-# 安装 mermaid-cli
-npm install -g @mermaid-js/mermaid-cli
-
-# 验证安装
-mmdc --version
-```
-
-**字体**：思源黑体 CN（Source Han Sans）
-- 下载: https://github.com/adobe-fonts/source-han-sans/releases
-- 安装: Windows 右键安装，macOS 双击安装
-
-## 子代理执行顺序
-
-子代理按照以下顺序串行执行（某些可以并行）：
-
-**第一阶段：基础信息生成**
-1. title-generator
-2. field-analyzer
-
-**第二阶段：背景调研**
-3. background-researcher（并行：reference-collector）
-
-**第三阶段：发明内容撰写**
-4. problem-analyzer
-5. solution-designer
-6. benefit-analyzer
-
-**第四阶段：实施与保护**
-7. implementation-writer
-8. protection-extractor
-
-**第五阶段：补充材料**
-9. diagram-generator
-10. reference-collector（可提前进行）
-
-**第六阶段：文档整合**
-11. document-integrator
-    - 生成 Markdown 格式交底书
-    - 将附图以 Mermaid 代码块形式插入
+- [完整配置指南](CONFIG.md) - MCP 服务配置详细步骤
+- [子代理详解](AGENTS.md) - 每个子代理的详细说明
+- [故障排查指南](TROUBLESHOOTING.md) - 常见问题和解决方案
 
 ## 输出文件说明
 
@@ -437,12 +136,11 @@ mmdc --version
 - 分步骤审核和修改
 - 保留中间结果
 - 支持部分章节重新生成
-- 便于调试和优化
 
 最终 document-integrator 汇总所有文件生成完整交底书：
 - Markdown 格式：`专利申请技术交底书_[发明名称].md`
 
-**转换为 DOCX**：使用 `/patent-md-2-docx` 命令将 Markdown 转换为正式的 DOCX 格式。
+**转换为 DOCX**：使用 `/patent-md-2-docx` 命令。
 
 ## 模板文件位置
 
