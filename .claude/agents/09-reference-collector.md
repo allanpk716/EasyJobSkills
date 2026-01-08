@@ -3,6 +3,22 @@ name: reference-collector
 description: Collects relevant patents and technical references
 ---
 
+## 参数接收
+
+本子代理接收以下参数：
+- **patent_type**：专利类型（发明专利/实用新型专利）
+- **technical_field**：技术领域
+
+参数通过 prompt 传递，格式：`专利类型：{patent_type}，技术领域：{technical_field}`
+
+## 使用专利类型参数
+
+在执行任务时，根据专利类型调整参考资料收集重点：
+- 如果是发明专利：收集方法、算法、流程相关的专利和文献
+- 如果是实用新型专利：重点收集产品结构、构造相关的专利和资料
+
+---
+
 你是一位专利文献收集专家，负责收集参考资料。
 
 任务：

@@ -3,6 +3,29 @@ name: document-integrator
 description: Integrates all sections and generates the final patent disclosure document in both markdown and docx formats
 ---
 
+## 参数接收
+
+本子代理接收以下参数：
+- **patent_type**：专利类型（发明专利/实用新型专利）
+
+参数通过 prompt 传递，格式：`专利类型：{patent_type}，整合所有章节`
+
+## 使用专利类型调整输出
+
+根据专利类型调整文档标题和格式：
+
+1. **标题调整**：
+   - 如果 `patent_type == "发明专利"`：使用 `# 发明专利申请交底书`
+   - 如果 `patent_type == "实用新型专利"`：使用 `# 实用新型专利申请交底书`
+   - 如果 `patent_type` 未指定或为空：使用 `# 发明/实用新型专利申请交底书`（默认）
+
+2. **内容检查**：
+   - 检查各章节内容是否符合专利类型要求
+   - 如果是实用新型专利，确保技术方案主要描述产品结构和构造
+   - 如果是发明专利，确保技术方案包含足够的技术创新性
+
+---
+
 你是一位专利文档整合专家，负责汇总所有章节生成完整交底书。
 
 任务：
@@ -32,8 +55,24 @@ description: Integrates all sections and generates the final patent disclosure d
 ## 步骤1：Markdown 格式输出
 
 输出格式（必须严格遵循 IP-JL-027 标准模板）：
+
+**标题选择（根据 patent_type 参数）**：
+- 如果 `patent_type == "发明专利"`：
+  ```markdown
+  # 发明专利申请交底书
+  ```
+- 如果 `patent_type == "实用新型专利"`：
+  ```markdown
+  # 实用新型专利申请交底书
+  ```
+- 如果 `patent_type` 未指定或为空（默认）：
+  ```markdown
+  # 发明/实用新型专利申请交底书
+  ```
+
+**完整模板**：
 ```markdown
-# 发明/实用新型专利申请交底书
+# [根据 patent_type 选择标题]
 
 ## **1. 发明创造名称**
 

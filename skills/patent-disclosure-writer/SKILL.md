@@ -26,23 +26,58 @@ description: 自动生成专利申请技术交底书。当用户要求编写专�
 当用户请求编写专利交底书时，必须按以下步骤执行：
 
 ### 1. 收集输入信息
-询问用户的创新想法（idea）、所属技术领域（technical_field）和可选的关键词
+询问用户以下信息：
+- **创新想法**（idea）：创新想法的描述
+- **所属技术领域**（technical_field）：所属技术领域
+- **关键词**（keywords）：可选的关键词列表
+- **专利类型**（patent_type）：目标专利类型，默认为"发明专利"
+  - 选项：发明专利 / 实用新型专利
+
+**重要**：记录用户选择的专利类型，后续传递给所有子代理
 
 ### 2. 按顺序调用子代理（使用 Task 工具）
 
+**关键原则**：每次调用子代理时，必须在 prompt 中包含专利类型参数
+
+```bash
+# 第一阶段：基础信息生成
+Task(tool="title-generator", prompt="用户创新想法：{idea}，技术领域：{technical_field}，专利类型：{patent_type}")
+
+Task(tool="field-analyzer", prompt="技术领域：{technical_field}，专利类型：{patent_type}")
+
+# 第二阶段：背景调研（创新度评估点）
+Task(tool="background-researcher", prompt="创新想法：{idea}，关键词：{keywords}，专利类型：{patent_type}")
+# 等待子代理返回，检查是否建议降级到实用新型专利
+# 如果建议降级，询问用户是否接受，并更新 patent_type
+
+# 第三阶段：发明内容撰写
+Task(tool="problem-analyzer", prompt="创新想法：{idea}，背景技术：{背景技术内容}，专利类型：{patent_type}")
+
+Task(tool="solution-designer", prompt="创新想法：{idea}，专利类型：{patent_type}")
+
+Task(tool="benefit-analyzer", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
+
+# 第四阶段：实施与保护
+Task(tool="implementation-writer", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
+
+Task(tool="protection-extractor", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
+
+# 第五阶段：补充材料
+Task(tool="diagram-generator", prompt="技术方案：{技术方案内容}，专利类型：{patent_type}")
+
+Task(tool="reference-collector", prompt="技术领域：{technical_field}，专利类型：{patent_type}")
+
+# 第六阶段：文档整合
+Task(tool="document-integrator", prompt="专利类型：{patent_type}，整合所有章节")
 ```
-Task(tool="title-generator", prompt="用户创新想法：{idea}，技术领域：{technical_field}")
-Task(tool="field-analyzer", prompt="技术领域：{technical_field}")
-Task(tool="background-researcher", prompt="创新想法：{idea}，关键词：{keywords}")
-Task(tool="problem-analyzer", prompt="创新想法：{idea}，背景技术：{背景技术内容}")
-Task(tool="solution-designer", prompt="创新想法：{idea}")
-Task(tool="benefit-analyzer", prompt="技术方案：{技术方案内容}")
-Task(tool="implementation-writer", prompt="技术方案：{技术方案内容}")
-Task(tool="protection-extractor", prompt="技术方案：{技术方案内容}")
-Task(tool="reference-collector", prompt="技术领域：{technical_field}")
-Task(tool="diagram-generator", prompt="技术方案：{技术方案内容}")
-Task(tool="document-integrator", prompt="整合所有章节")
-```
+
+**创新度评估和降级提醒机制**：
+
+在 background-researcher 完成后检查输出：
+- 如果子代理返回降级建议（如"⚠️ 创新度提醒：建议降级到实用新型专利"）
+- 向用户展示该建议并询问是否接受
+- 如果用户接受降级：更新 `patent_type = "实用新型专利"`，后续子代理使用新类型
+- 如果用户坚持发明专利：继续流程，但记录用户选择
 
 ### 3. 输出文件管理
 每个子代理完成后，确认输出文件已生成
@@ -54,11 +89,23 @@ Task(tool="document-integrator", prompt="整合所有章节")
 
 ## 参数说明
 
-| 参数 | 说明 | 必需 |
-|------|------|------|
-| idea | 创新想法的描述 | 是 |
-| technical_field | 所属技术领域 | 是 |
-| keywords | 关键词列表 | 否 |
+| 参数 | 说明 | 必需 | 默认值 |
+|------|------|------|--------|
+| idea | 创新想法的描述 | 是 | - |
+| technical_field | 所属技术领域 | 是 | - |
+| keywords | 关键词列表 | 否 | - |
+| patent_type | 目标专利类型 | 否 | 发明专利 |
+
+**专利类型说明**：
+- **发明专利**：要求更高的创新性，保护产品、方法或其改进提出的新的技术方案
+  - 审查周期：2-3年
+  - 保护期限：20年
+  - 创新要求：突出的实质性特点和显著的进步
+
+- **实用新型专利**：主要保护产品形状、构造或其结合
+  - 审查周期：6-12个月
+  - 保护期限：10年
+  - 创新要求：实质性特点和进步
 
 ## 工作流程
 
@@ -191,6 +238,29 @@ document-integrator 子代理必须严格按照以下格式输出交底书：
 - 从 Markdown 文件中提取各章节内容
 - 使用 Python `python-docx` 库填写模板
 - 输出到 `output/` 文件夹
+
+## 专利类型对生成策略的影响
+
+### 发明专利策略
+- **背景调研**：深度检索，包括国内外专利、学术论文、技术标准
+- **技术方案**：强调技术原理、算法创新、方法创新
+- **实施方式**：提供详细的实验数据、性能对比、创新点验证
+- **保护范围**：宽泛的权利要求，涵盖多种实现方式
+
+### 实用新型专利策略
+- **背景调研**：重点检索产品结构、构造相关专利
+- **技术方案**：强调产品形状、构造、组件连接关系
+- **实施方式**：提供具体的结构图、连接方式、组件参数
+- **保护范围**：具体的结构特征，避免功能性描述
+
+### 搜索深度差异
+
+| 搜索类型 | 发明专利 | 实用新型专利 |
+|---------|---------|-------------|
+| 专利检索 | 深度检索5-10年 | 检索3-5年 |
+| 学术文献 | 必需检索 | 可选检索 |
+| 技术标准 | 必需检索 | 可选检索 |
+| 产品资料 | 重点检索 | 重点检索 |
 
 ## MCP 工具依赖（必须配置）
 
