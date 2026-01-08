@@ -48,9 +48,82 @@ description: Integrates all sections and generates the final patent disclosure d
    - 一致性检查：术语、编号是否统一
    - 格式规范检查：章节编号、标题层级
 
-4. 生成完整交底书文档（两步输出）
+4. **环境检查**（新增）：验证转换所需的依赖项
+   - 检查 Python 版本（>= 3.7）
+   - 检查 python-docx 库是否已安装
+   - 检查思源黑体 CN 字体是否已安装
+   - 检查 DOCX 模板文件是否存在
+   - 提供 font 安装指导（如果缺失）
+
+5. 生成完整交底书文档（两步输出）
    - 步骤1：生成 Markdown 格式交底书
-   - 步骤2：基于 Markdown 内容生成 DOCX 格式交底书
+   - 步骤2：基于 Markdown 内容生成 DOCX 格式交底书（使用三子代理架构）
+
+## 步骤0：环境检查（新增）
+
+在开始生成文档前，首先检查转换所需的运行环境和依赖项。
+
+**调用 environment-checker 子代理**：
+
+使用以下方式调用环境检查器：
+
+```bash
+python .claude/scripts/docx_conversion/font_utils.py
+```
+
+检查项目：
+1. **Python 版本**：要求 Python >= 3.7
+2. **python-docx 库**：要求 python-docx >= 0.8.11
+3. **思源黑体 CN 字体**：
+   - 标题字体：思源黑体 CN Bold
+   - 正文字体：思源黑体 CN Normal
+4. **DOCX 模板文件**：验证模板文件存在
+5. **系统环境**：检测操作系统平台
+
+**字体安装指南**（如果字体缺失）：
+
+如果思源黑体 CN 字体未安装，提供以下安装指导：
+
+```
+❌ 系统未安装思源黑体 CN 字体
+
+💡 解决方法：
+
+1. 下载思源黑体（Source Han Sans）字体
+   访问: https://github.com/adobe-fonts/source-han-sans/releases
+   下载: SourceHanSansSC.zip (简体中文版本)
+
+2. 安装字体
+
+   **Windows**:
+   - 解压下载的 ZIP 文件
+   - 找到 OTF 或 TTF 文件
+   - 右键点击字体文件，选择"安装"或"为所有用户安装"
+
+   **macOS**:
+   - 解压下载的 ZIP 文件
+   - 双击字体文件
+   - 点击"安装字体"按钮
+
+   **Linux**:
+   - 解压下载的 ZIP 文件
+   - 复制字体文件到 ~/.fonts/ 或 /usr/share/fonts/
+   - 运行: fc-cache -fv
+
+3. 验证安装
+   安装完成后，重新运行程序自动检测字体。
+```
+
+**python-docx 库安装指南**（如果库缺失）：
+
+```
+❌ python-docx 库未安装
+
+💡 解决方法：运行以下命令安装
+pip install python-docx
+```
+
+**环境检查通过后**，继续执行步骤1和步骤2。
 
 ## 步骤1：Markdown 格式输出
 
@@ -124,197 +197,305 @@ description: Integrates all sections and generates the final patent disclosure d
 输出文件命名：
 - 专利申请技术交底书_[发明名称].md
 
-## 步骤2：DOCX 格式输出
+## 步骤2：DOCX 格式输出（使用三子代理架构）
 
-在生成 Markdown 文件后，使用 Python 脚本将内容填写到 DOCX 模板中。
+在生成 Markdown 文件后，使用专门的三子代理架构生成 DOCX 文件并验证质量。
 
-**模板路径**：`C:\WorkSpace\agent\PatentWriterSkill\out_templates\发明、实用新型专利申请交底书 模板.docx`
-
-使用以下 Python 脚本生成 DOCX 文件：
-
-```python
-import sys
-import os
-import re
-from docx import Document
-
-# 设置输出编码
-sys.stdout.reconfigure(encoding='utf-8')
-
-# 模板路径
-template_path = r'C:\WorkSpace\agent\PatentWriterSkill\out_templates\发明、实用新型专利申请交底书 模板.docx'
-
-# 输出目录（当前工作目录下的 output 文件夹）
-output_dir = 'output'
-os.makedirs(output_dir, exist_ok=True)
-
-# 发明名称（从 01_发明名称.md 读取）
-with open('01_发明名称.md', 'r', encoding='utf-8') as f:
-    title = f.read().strip()
-
-# 输出文件路径
-docx_output_path = os.path.join(output_dir, f'专利申请技术交底书_{title}.docx')
-
-# 读取模板
-doc = Document(template_path)
-
-# 定义章节内容映射函数
-def fill_section(doc, section_number, content):
-    """根据章节编号填写内容"""
-    # 查找章节标题段落
-    section_pattern = re.compile(rf'^{section_number}[、.]\s*')
-    found_section = False
-    insert_index = None
-
-    for i, para in enumerate(doc.paragraphs):
-        text = para.text.strip()
-        if section_pattern.match(text):
-            found_section = True
-            # 找到下一个段落的位置（用于插入内容）
-            # 通常是章节标题后的第一个非空段落
-            for j in range(i + 1, len(doc.paragraphs)):
-                next_text = doc.paragraphs[j].text.strip()
-                if next_text and not re.match(r'^\d+[、.]\s*', next_text):
-                    insert_index = j
-                    break
-            break
-
-    if not found_section:
-        print(f"警告：未找到章节 {section_number}")
-        return
-
-    # 找到目标段落后，插入或更新内容
-    if insert_index is not None:
-        # 检查是否是备注段落（包含【】的段落需要替换）
-        target_para = doc.paragraphs[insert_index]
-        if '【' in target_para.text and '】' in target_para.text:
-            # 替换备注段落的内容
-            target_para.text = content
-            target_para.style = 'Normal'
-        else:
-            # 在目标段落前插入新段落
-            new_para = doc.paragraphs[insert_index]._element
-            new_p = doc.paragraphs[insert_index]._element.addprevious(
-                doc.paragraphs[insert_index]._element.__class__()
-            )
-            new_para_obj = Document(new_p.getparent()).paragraphs[insert_index]
-            new_para_obj.text = content
-            new_para_obj.style = 'Normal'
-
-def fill_docx_template(title):
-    """填写 DOCX 模板"""
-    try:
-        # 读取各章节内容
-        sections = {
-            '1': read_content('01_发明名称.md'),
-            '2': read_content('02_所属技术领域.md'),
-            '3': read_content('03_相关的背景技术.md'),
-            '4.1': read_content('04_解决的技术问题.md'),
-            '4.2': read_content('05_技术方案.md'),
-            '4.3': read_content('06_有益效果.md'),
-            '5': read_content('07_具体实施方式.md'),
-            '6': read_content('08_关键点和欲保护点.md'),
-            '7': read_content('09_其他有助于理解本技术的资料.md')
-        }
-
-        # 读取模板
-        doc = Document(template_path)
-
-        # 由于 python-docx 的限制，我们采用另一种方法
-        # 清空模板中的备注段落并填写内容
-        para_index = 0
-        current_section = None
-
-        for para in doc.paragraphs:
-            text = para.text.strip()
-            para_index += 1
-
-            # 识别章节标题
-            if re.match(r'^1[、.]\s*发明创造名称', text):
-                current_section = '1'
-            elif re.match(r'^2[、.]\s*所属技术领域', text):
-                current_section = '2'
-            elif re.match(r'^3[、.]\s*相关的背景技术', text):
-                current_section = '3'
-            elif re.match(r'^4[、.]\s*发明内容', text):
-                current_section = '4'
-            elif re.match(r'^（1）[、.]\s*解决的技术问题', text) or re.match(r'^\(1\)[、.]\s*解决的技术问题', text):
-                current_section = '4.1'
-            elif re.match(r'^（2）[、.]\s*技术方案', text) or re.match(r'^\(2\)[、.]\s*技术方案', text):
-                current_section = '4.2'
-            elif re.match(r'^（3）[、.]\s*有益效果', text) or re.match(r'^\(3\)[、.]\s*有益效果', text):
-                current_section = '4.3'
-            elif re.match(r'^5[、.]\s*具体实施方式', text):
-                current_section = '5'
-            elif re.match(r'^6[、.]\s*关键点和欲保护点', text):
-                current_section = '6'
-            elif re.match(r'^7[、.]\s*其他有助于理解本技术的资料', text):
-                current_section = '7'
-
-            # 如果当前段落是备注（包含【】），则替换为实际内容
-            if current_section and '【' in text:
-                content = sections.get(current_section, '')
-                if content:
-                    para.text = content
-                    para.style = 'Normal'
-
-        # 保存文档
-        doc.save(docx_output_path)
-        print(f"DOCX 文档已生成：{docx_output_path}")
-        return True
-
-    except Exception as e:
-        print(f"生成 DOCX 文档时出错：{e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-def read_content(filename):
-    """读取章节内容文件"""
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            # 移除 Markdown 标题标记（如果有）
-            content = re.sub(r'^#+\s*', '', content)
-            return content
-    except FileNotFoundError:
-        print(f"警告：文件 {filename} 不存在")
-        return ""
-    except Exception as e:
-        print(f"读取文件 {filename} 时出错：{e}")
-        return ""
-
-if __name__ == "__main__":
-    # 从 01_发明名称.md 获取标题
-    with open('01_发明名称.md', 'r', encoding='utf-8') as f:
-        invention_title = f.read().strip()
-
-    print(f"正在生成 DOCX 交底书：{invention_title}")
-
-    if fill_docx_template(invention_title):
-        print("DOCX 交底书生成成功！")
-    else:
-        print("DOCX 交底书生成失败！")
+**架构概述**：
+```
+Markdown 文件 → markdown-parser → JSON 数据
+                          ↓
+JSON 数据 → docx-generator → DOCX 文件
+                          ↓
+DOCX 文件 → docx-validator → 验证报告
 ```
 
-**调用方式**：
-使用 Bash 工具执行 Python 脚本：
+**模板路径**：`skills/patent-disclosure-writer/templates/发明、实用新型专利申请交底书 模板.docx`
+
+### 步骤 2.1：调用 markdown-parser
+
+使用 Bash 工具执行 Markdown 解析脚本：
+
 ```bash
-cd <工作目录> && python generate_docx.py
+python .claude/scripts/docx_conversion/markdown_parser.py "专利申请技术交底书_{发明名称}.md" "parsed_sections.json"
 ```
 
-或者直接在子代理中内联执行 Python 代码：
-```python
-# 使用 Bash 工具执行
-python_script = '''
-import sys
-import os
-import re
-from docx import Document
-# ...（上面的脚本内容）
-'''
-bash(command=f'python -c "{python_script}"')
+**输入**：
+- Markdown 文件路径（步骤1生成的文件）
+
+**输出**：
+- JSON 格式的结构化数据（`parsed_sections.json`）
+- 包含：标题、7个章节、第4章节的3个子项、验证结果
+
+**预期结果**：
+```json
+{
+  "title": "专利申请技术交底书_发明名称",
+  "sections": [
+    {"number": "1", "title": "发明创造名称", "content": "..."},
+    {"number": "2", "title": "所属技术领域", "content": "..."},
+    {"number": "3", "title": "相关的背景技术", "content": "..."},
+    {
+      "number": "4",
+      "title": "发明内容",
+      "subsections": [
+        {"number": "4.1", "title": "解决的技术问题", "content": "..."},
+        {"number": "4.2", "title": "技术方案", "content": "..."},
+        {"number": "4.3", "title": "有益效果", "content": "..."}
+      ]
+    },
+    {"number": "5", "title": "具体实施方式", "content": "..."},
+    {"number": "6", "title": "关键点和欲保护点", "content": "..."},
+    {"number": "7", "title": "其他有助于理解本技术的资料", "content": "..."}
+  ],
+  "validation": {
+    "is_complete": true,
+    "missing_sections": [],
+    "missing_subsections": []
+  }
+}
 ```
+
+**验证**：
+- 确认 JSON 文件已生成
+- 检查 `validation.is_complete` 是否为 `true`
+- 确认包含7个主要章节和第4章节的3个子项
+
+### 步骤 2.2：调用 docx-generator
+
+使用 Bash 工具执行 DOCX 生成脚本：
+
+```bash
+python .claude/scripts/docx_conversion/docx_generator.py "parsed_sections.json" "skills/patent-disclosure-writer/templates/发明、实用新型专利申请交底书 模板.docx" "专利申请技术交底书_{发明名称}.docx"
+```
+
+**输入**：
+- JSON 数据文件（步骤2.1生成）
+- DOCX 模板路径
+- 输出 DOCX 文件路径
+
+**输出**：
+- DOCX 文件（`专利申请技术交底书_{发明名称}.docx`）
+- 生成统计信息
+
+**字体设置**（自动应用）：
+- 标题字体：思源黑体 CN Bold，18pt
+- 正文字体：思源黑体 CN Normal，10pt
+
+**段落格式**（自动设置）：
+- 行距：1.5倍
+- 首行缩进：2字符
+- 对齐：两端对齐
+
+**页面设置**（自动配置）：
+- 纸张大小：A4
+- 页边距：上下2.54cm、左右3.17cm
+
+**预期结果**：
+```json
+{
+  "success": true,
+  "docx_path": "专利申请技术交底书_{发明名称}.docx",
+  "generation_timestamp": "2026-01-08T14:35:00Z",
+  "stats": {
+    "total_paragraphs": 125,
+    "sections_filled": 7,
+    "font_applied": {
+      "title": "思源黑体 CN Bold",
+      "body": "思源黑体 CN Normal"
+    }
+  }
+}
+```
+
+**验证**：
+- 确认 DOCX 文件已成功生成
+- 检查字体是否正确应用
+- 确认所有章节已填充
+
+### 步骤 2.3：调用 docx-validator
+
+使用 Bash 工具执行 DOCX 验证脚本：
+
+```bash
+python .claude/scripts/docx_conversion/docx_validator.py "专利申请技术交底书_{发明名称}.docx" "validation_report.json" --level strict
+```
+
+**输入**：
+- DOCX 文件路径（步骤2.2生成）
+- 输出验证报告路径
+- 验证级别：`strict`（严格验证）
+
+**输出**：
+- 验证报告（`validation_report.json`）
+- 包含：总体评分、详细检查结果、关键问题、改进建议
+
+**验证项目**（6个类别）：
+1. **章节完整性**（权重30%）：7个章节齐全
+2. **字体应用**（权重25%）：思源黑体 CN，标题18pt、正文10pt
+3. **段落格式**（权重20%）：行距1.5倍、首行缩进2字符、两端对齐
+4. **样式一致性**（权重10%）：同级元素字体一致
+5. **页面设置**（权重5%）：A4纸张、正确页边距
+6. **内容质量**（权重10%）：无过多空段落、无过短章节
+
+**预期结果**：
+```json
+{
+  "validation_passed": true,
+  "validation_level": "strict",
+  "validation_timestamp": "2026-01-08T14:40:00Z",
+  "overall_score": 95,
+  "critical_issues": [],
+  "checks": {
+    "section_completeness": {"passed": true, "details": {...}},
+    "font_application": {"passed": true, "details": {...}},
+    "paragraph_formatting": {"passed": true, "details": {...}},
+    "style_consistency": {"passed": true, "details": {...}},
+    "page_setup": {"passed": true, "details": {...}},
+    "content_quality": {"passed": true, "details": {...}}
+  },
+  "recommendations": []
+}
+```
+
+**通过标准**：
+- 总体评分 >= 80分
+- 没有关键问题（critical_issues 为空）
+
+### 步骤 2.4：展示验证结果
+
+读取验证报告并向用户展示：
+
+```markdown
+## DOCX 文件生成和验证完成
+
+**Markdown 文件**: `专利申请技术交底书_{发明名称}.md`
+**DOCX 文件**: `专利申请技术交底书_{发明名称}.docx`
+**验证报告**: `validation_report.json`
+
+---
+
+### 验证结果总览
+
+⭐ **总体评分**: 95/100
+✅ **验证状态**: 通过
+
+---
+
+### 详细检查结果
+
+✅ **1. 章节完整性** (30%)
+   - 7个主要章节全部存在
+   - 第4章节的3个子项齐全
+
+✅ **2. 字体应用** (25%)
+   - 标题字体: 思源黑体 CN Bold, 18pt ✓
+   - 正文字体: 思源黑体 CN Normal, 10pt ✓
+
+✅ **3. 段落格式** (20%)
+   - 行距: 1.5倍 ✓
+   - 首行缩进: 2字符 ✓
+   - 对齐: 两端对齐 ✓
+
+✅ **4. 样式一致性** (10%)
+   - 标题样式一致 ✓
+   - 正文样式一致 ✓
+
+✅ **5. 页面设置** (5%)
+   - 纸张大小: A4 ✓
+   - 页边距: 符合要求 ✓
+
+✅ **6. 内容质量** (10%)
+   - 空段落数量: 正常 ✓
+   - 章节长度: 正常 ✓
+
+---
+
+📄 生成的 DOCX 文件已通过所有质量检查，可以交付给专利代理机构使用。
+```
+
+**如果验证未通过**，显示详细的改进建议：
+
+```markdown
+⚠️ **验证未通过**
+
+**总体评分**: 65/100
+**通过标准**: >= 80分 且无关键问题
+
+---
+
+### ⚠️ 关键问题
+
+1. **章节不完整**: 缺失章节 6
+2. **字体设置错误**: 标题未使用思源黑体 CN Bold
+
+---
+
+### 💡 改进建议
+
+1. 请补充缺失的章节内容
+2. 请确保使用思源黑体 CN 字体（标题18pt、正文10pt）
+3. 请设置段落格式：行距1.5倍、首行缩进2字符
+4. 建议重新生成 DOCX 文件
+
+---
+
+💡 提示：如果字体缺失，请参考步骤0中的字体安装指南。
+```
+
+### 错误处理
+
+**如果 markdown-parser 失败**：
+```bash
+❌ Markdown 解析失败
+💡 请检查 Markdown 文件格式是否符合规范
+💡 确认包含7个章节和第4章节的3个子项
+```
+
+**如果 docx-generator 失败**：
+```bash
+❌ DOCX 生成失败
+💡 请检查思源黑体 CN 字体是否已安装
+💡 请检查模板文件是否存在
+💡 参考 step 0 环境检查的安装指南
+```
+
+**如果 docx-validator 失败（评分<80或有关键问题）**：
+```bash
+❌ DOCX 验证未通过
+💡 请查看验证报告中的详细问题
+💡 根据改进建议修复问题
+💡 可以手动调整 DOCX 文件后重新验证
+```
+
+### 子代理调用总结
+
+完整的 DOCX 生成流程使用三个专门的子代理：
+
+1. **markdown-parser** (子代理 16)：
+   - 解析 Markdown 文件
+   - 提取章节结构
+   - 输出 JSON 数据
+
+2. **docx-generator** (子代理 17)：
+   - 加载 DOCX 模板
+   - 填充章节内容
+   - 设置字体和格式
+   - 生成 DOCX 文件
+
+3. **docx-validator** (子代理 18)：
+   - 验证章节完整性
+   - 检查字体应用
+   - 检查段落格式
+   - 检查样式一致性
+   - 检查页面设置
+   - 检查内容质量
+   - 生成验证报告
+
+**相关文件**：
+- Python 脚本：`.claude/scripts/docx_conversion/`
+- 子代理配置：`.claude/agents/15-environment-checker.md`, `16-markdown-parser.md`, `17-docx-generator.md`, `18-docx-validator.md`
+- DOCX 模板：`skills/patent-disclosure-writer/templates/发明、实用新型专利申请交底书 模板.docx`
 
 质量检查清单：
 
