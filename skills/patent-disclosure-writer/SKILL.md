@@ -192,14 +192,100 @@ document-integrator 子代理必须严格按照以下格式输出交底书：
 - 使用 Python `python-docx` 库填写模板
 - 输出到 `output/` 文件夹
 
-## MCP 工具使用说明
+## MCP 工具依赖（必须配置）
+
+本技能依赖以下 MCP 服务，使用前**必须**完成配置：
+
+### 必需的 MCP 服务
+
+| MCP 服务 | 用途 | 使用的子代理 | 配置方式 |
+|---------|------|--------------|----------|
+| web-search-prime | 网络搜索 | background-researcher, solution-designer, implementation-writer, reference-collector | 智谱 API（HTTP） |
+| web-reader | 网页内容提取 | background-researcher, reference-collector | 智谱 API（HTTP） |
+| google-patents-mcp | 专利检索 | background-researcher, protection-extractor, reference-collector | npx + SerpAPI |
+| exa | 技术文档搜索 | background-researcher, solution-designer, implementation-writer | npx + Exa API |
+
+### 配置步骤
+
+在 `~/.claude/settings.json` 或 `.claude.json` 中添加以下 MCP 服务配置：
+
+```json
+{
+  "mcpServers": {
+    "web-search-prime": {
+      "type": "http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ZHIPU_API_KEY"
+      }
+    },
+    "web-reader": {
+      "type": "http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ZHIPU_API_KEY"
+      }
+    },
+    "google-patents-mcp": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@kunihiros/google-patents-mcp"
+      ],
+      "env": {
+        "SERPAPI_API_KEY": "YOUR_SERPAPI_KEY"
+      }
+    },
+    "exa": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "exa-mcp-server"
+      ],
+      "env": {
+        "EXA_API_KEY": "YOUR_EXA_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### API 密钥获取
+
+| 服务 | 获取地址 |
+|------|----------|
+| 智谱 API（web-search-prime/web-reader） | https://open.bigmodel.cn/ |
+| SerpAPI（google-patents-mcp） | https://serpapi.com/ |
+| Exa API（exa） | https://exa.ai/api-key |
+
+### 配置验证
+
+配置完成后，在 Claude Code 中运行以下命令验证 MCP 服务是否正常：
+
+```bash
+# 查看已加载的 MCP 服务
+/mcp list
+```
+
+确保以下工具可用：
+- `mcp__web-search-prime__webSearchPrime`
+- `mcp__web_reader__webReader`
+- `mcp__google-patents-mcp__search_patents`
+- `mcp__exa__get_code_context_exa`
+
+### MCP 工具使用映射
 
 | MCP服务 | 工具名称 | 主要用途 | 使用的子代理 |
 |---------|----------|----------|--------------|
+| web-search-prime | webSearchPrime | 网络搜索 | background-researcher, solution-designer, implementation-writer, reference-collector |
+| web-reader | webReader | 网页内容提取 | background-researcher, reference-collector |
 | google-patents-mcp | search_patents | 专利检索 | background-researcher, protection-extractor, reference-collector |
 | exa | get_code_context_exa | 技术文档和代码搜索 | background-researcher, solution-designer, implementation-writer |
-| web-reader | webReader | 网页内容提取 | background-researcher, reference-collector |
-| web-search-prime | webSearchPrime | 网络搜索 | background-researcher, solution-designer, implementation-writer, reference-collector |
 | zai-mcp-server | - | 图像和文档分析 | 可选 |
 
 ## Python 依赖要求

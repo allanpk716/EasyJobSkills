@@ -119,26 +119,71 @@ claude plugin install patent-disclosure-writer@easy-job-skills
 
 ## MCP 依赖
 
-某些技能依赖 MCP 服务。安装技能前，请确保已配置：
+某些技能依赖 MCP 服务。安装技能前，请确保已配置所需的 API 密钥和服务。
+
+### 专利交底书生成器所需 MCP 服务
+
+| MCP 服务 | 用途 | 所需 API 密钥 |
+|---------|------|--------------|
+| web-search-prime | 网络搜索 | [智谱 API](https://open.bigmodel.cn/) |
+| web-reader | 网页内容提取 | [智谱 API](https://open.bigmodel.cn/) |
+| google-patents-mcp | 专利检索 | [SerpAPI](https://serpapi.com/) |
+| exa | 技术文档搜索 | [Exa API](https://exa.ai/api-key) |
+
+### 配置步骤
+
+在 `~/.claude/settings.json` 或 `.claude.json` 中添加以下 MCP 服务配置：
+
+```json
+{
+  "mcpServers": {
+    "web-search-prime": {
+      "type": "http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_search_prime/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ZHIPU_API_KEY"
+      }
+    },
+    "web-reader": {
+      "type": "http",
+      "url": "https://open.bigmodel.cn/api/mcp/web_reader/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_ZHIPU_API_KEY"
+      }
+    },
+    "google-patents-mcp": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@kunihiros/google-patents-mcp"],
+      "env": {
+        "SERPAPI_API_KEY": "YOUR_SERPAPI_KEY"
+      }
+    },
+    "exa": {
+      "type": "stdio",
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "exa-mcp-server"],
+      "env": {
+        "EXA_API_KEY": "YOUR_EXA_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Python 依赖
 
 ```bash
-# 专利检索
-npm install -g @modelcontextprotocol/server-google-patents
-
-# 技术文档搜索
-npm install -g @modelcontextprotocol/server-exa
-
-# 网页内容提取
-npm install -g @modelcontextprotocol/server-web-reader
-
-# 网络搜索
-npm install -g @modelcontextprotocol/server-web-search-prime
-
-# Python 依赖
 pip install python-docx
 ```
 
-在 `~/.claude/settings.json` 中配置 MCP 服务。
+### 验证配置
+
+配置完成后，运行以下命令验证 MCP 服务是否正常：
+
+```bash
+# 查看已加载的 MCP 服务
+/mcp list
+```
 
 ## 贡献新技能
 
